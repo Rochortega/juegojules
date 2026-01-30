@@ -3,6 +3,7 @@ import sys
 from src.settings import *
 from src.level import Level
 from src.map_loader import load_level_map
+from src.menu import Menu
 
 class Game:
     def __init__(self, level_file='levels/level_01.json'):
@@ -21,8 +22,15 @@ class Game:
                 pygame.joystick.Joystick(i).init()
 
         self.running = True
+        self.state = 'MENU' # MENU, PLAY
 
-        level_map = load_level_map(level_file)
+        self.menu = Menu(self.screen)
+
+        self.level_file = level_file
+        self.load_level()
+
+    def load_level(self):
+        level_map = load_level_map(self.level_file)
         self.level = Level(level_map, self.virtual_screen)
 
     def run(self):
@@ -40,21 +48,37 @@ class Game:
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    self.running = False
-                    pygame.quit()
-                    sys.exit()
+                    if self.state == 'PLAY':
+                        self.state = 'MENU' # Pause/Menu
+                    else:
+                        self.running = False
+                        pygame.quit()
+                        sys.exit()
+
+                if self.state == 'MENU':
+                    if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                        self.state = 'PLAY'
+
+            # Joystick Start button
+            if event.type == pygame.JOYBUTTONDOWN:
+                 if self.state == 'MENU':
+                     # Any button to start
+                     self.state = 'PLAY'
 
     def update(self):
         pass
 
     def draw(self):
-        # Draw everything to the virtual screen
-        self.virtual_screen.fill(BG_COLOR)
+        if self.state == 'MENU':
+            self.menu.run()
+        else:
+            # Draw everything to the virtual screen
+            self.virtual_screen.fill(BG_COLOR)
 
-        self.level.run()
+            self.level.run()
 
-        # Scale and blit to actual screen
-        scaled_surface = pygame.transform.scale(self.virtual_screen, (WINDOW_WIDTH, WINDOW_HEIGHT))
-        self.screen.blit(scaled_surface, (0, 0))
+            # Scale and blit to actual screen
+            scaled_surface = pygame.transform.scale(self.virtual_screen, (WINDOW_WIDTH, WINDOW_HEIGHT))
+            self.screen.blit(scaled_surface, (0, 0))
 
         pygame.display.flip()

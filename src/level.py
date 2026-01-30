@@ -16,6 +16,11 @@ class Level:
         self.hit_sound.set_volume(0.5)
         self.win_sound = pygame.mixer.Sound('assets/sounds/win.wav')
         self.win_sound.set_volume(0.5)
+        self.break_sound = pygame.mixer.Sound('assets/sounds/break.wav')
+        self.break_sound.set_volume(0.5)
+
+        # UI
+        self.heart_img = pygame.image.load('assets/sprites/ui_heart.png').convert_alpha()
 
     def setup_level(self, level_data):
         self.bg_tiles = pygame.sprite.Group()
@@ -42,6 +47,11 @@ class Level:
                     if cell == 'X':
                         tile = Tile((x, y), 16)
                         group.add(tile)
+                    if cell == 'B':
+                        tile = Tile((x, y), 16)
+                        tile.image = pygame.image.load('assets/sprites/tile_brick.png').convert_alpha()
+                        tile.is_brick = True # Mark as breakable
+                        group.add(tile)
 
                     # Only parse entities in Main layer to avoid duplicates or logic issues
                     if is_main:
@@ -64,6 +74,7 @@ class Level:
     def respawn(self):
         self.player.sprite.rect.topleft = self.start_pos
         self.player.sprite.direction = pygame.math.Vector2(0, 0)
+        self.player.sprite.health = 3 # Reset health
         # Reset level shift?
         # Since we shift tiles, resetting player to start_pos (which is relative to initial world) won't work
         # if the world has shifted.
@@ -91,9 +102,23 @@ class Level:
                     player.direction.y = -6 # Bounce
                     enemy.kill()
                 else:
-                    # Player dies
-                    self.hit_sound.play()
-                    self.respawn()
+                    if not player.invincible:
+                        # Player hurts
+                        self.hit_sound.play()
+                        player.health -= 1
+                        player.invincible = True
+                        player.hurt_time = pygame.time.get_ticks()
+
+                        # Knockback (simple)
+                        if player.rect.centerx < enemy.rect.centerx:
+                            player.direction.x = -1
+                        else:
+                            player.direction.x = 1
+                        player.direction.y = -4
+                        player.rect.x += player.direction.x * 10
+
+                        if player.health <= 0:
+                            self.respawn()
 
         # Enemy environment collision
         for enemy in self.enemies.sprites():
@@ -132,6 +157,11 @@ class Level:
                     player.rect.top = sprite.rect.bottom
                     player.direction.y = 0
 
+                    # Break brick
+                    if hasattr(sprite, 'is_brick') and sprite.is_brick:
+                        sprite.kill()
+                        self.break_sound.play()
+
         if player.on_ground and player.direction.y < 0 or player.direction.y > 1:
             player.on_ground = False
 
@@ -153,6 +183,13 @@ class Level:
         else:
             self.world_shift = 0
             player.speed = PLAYER_SPEED
+
+    def ui(self):
+        # Draw Hearts
+        for i in range(self.player.sprite.health):
+            x = 10 + (i * 18)
+            y = 10
+            self.display_surface.blit(self.heart_img, (x, y))
 
     def run(self):
         # Check death
@@ -191,3 +228,5 @@ class Level:
         self.enemies.draw(self.display_surface)
         self.player.draw(self.display_surface)
         self.fg_tiles.draw(self.display_surface)
+
+        self.ui()

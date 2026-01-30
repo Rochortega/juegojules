@@ -22,6 +22,13 @@ class Player(pygame.sprite.Sprite):
         self.facing_right = True
         self.on_ground = False
 
+        # Health
+        self.max_health = 3
+        self.health = 3
+        self.invincible = False
+        self.invincibility_duration = 1000 # ms
+        self.hurt_time = 0
+
     def import_assets(self):
         path = 'assets/sprites/'
         self.animations = {'idle': [], 'run': [], 'jump': [], 'fall': []}
@@ -120,10 +127,9 @@ class Player(pygame.sprite.Sprite):
         self.get_input()
         self.get_status()
         self.animate()
-        # Physics update will be handled in Level or Game to account for collisions
-        # For now, we apply gravity internally but external system should handle collisions
-        # self.apply_gravity()
-        # Wait, if I don't apply gravity here or in level, he won't move.
-        # I'll put movement logic in `move()` called by level, or `update()` calls it.
-        # Let's put basic movement here but collision will stop it.
-        pass
+
+        # Invincibility timer
+        if self.invincible:
+            current_time = pygame.time.get_ticks()
+            if current_time - self.hurt_time >= self.invincibility_duration:
+                self.invincible = False

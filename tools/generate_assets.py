@@ -295,6 +295,77 @@ def generate_sprites():
     ]
     create_pixel_art_sprite(16, 16, enemy_pattern, enemy_palette, "assets/sprites/enemy.png")
 
+    # Heart (UI)
+    heart_palette = {
+        '.': TRANSPARENT,
+        'R': (255, 50, 50),
+        'W': (255, 255, 255)
+    }
+    heart_pattern = [
+        "................",
+        "................",
+        "................",
+        "................",
+        "..RRR...RRR.....",
+        ".RRRRR.RRRRR....",
+        ".RRRRRRRRRRR....",
+        ".RRRRRRRRRRR....",
+        "..RRRRRRRRR.....",
+        "...RRRRRRR......",
+        "....RRRRR.......",
+        ".....RRR........",
+        "......R.........",
+        "................",
+        "................",
+        "................",
+    ]
+    create_pixel_art_sprite(16, 16, heart_pattern, heart_palette, "assets/sprites/ui_heart.png")
+
+    # Brick
+    brick_palette = {
+        '.': (139, 69, 19), # SaddleBrown
+        'B': (100, 50, 0), # Darker
+        'L': (160, 82, 45) # Sienna (Light)
+    }
+    brick_pattern = [
+        "LLLLLLLLLLLLLLLL",
+        "L..............B",
+        "L..............B",
+        "L..............B",
+        "LBBBBBBBBBBBBBBB",
+        "LLLLLLLLLLLLLLLL",
+        "L..............B",
+        "L..............B",
+        "L..............B",
+        "LBBBBBBBBBBBBBBB",
+        "LLLLLLLLLLLLLLLL",
+        "L..............B",
+        "L..............B",
+        "L..............B",
+        "LBBBBBBBBBBBBBBB",
+        "BBBBBBBBBBBBBBBB",
+    ]
+    # Actually let's make it look like bricks
+    brick_pattern_2 = [
+        "BBBBBBBBBBBBBBBB",
+        "B....BB.......BB",
+        "B....BB.......BB",
+        "BBBBBBBBBBBBBBBB",
+        "BB.......BB....B",
+        "BB.......BB....B",
+        "BBBBBBBBBBBBBBBB",
+        "B....BB.......BB",
+        "B....BB.......BB",
+        "BBBBBBBBBBBBBBBB",
+        "BB.......BB....B",
+        "BB.......BB....B",
+        "BBBBBBBBBBBBBBBB",
+        "B....BB.......BB",
+        "B....BB.......BB",
+        "BBBBBBBBBBBBBBBB",
+    ]
+    create_pixel_art_sprite(16, 16, brick_pattern_2, brick_palette, "assets/sprites/tile_brick.png")
+
 def generate_sound(filename, duration, freq, volume=0.5, type='square'):
     sample_rate = 44100
     n_samples = int(sample_rate * duration)
@@ -341,5 +412,7 @@ if __name__ == "__main__":
     generate_sound("hit.wav", 0.3, 100, type='sawtooth')
     # Win: Happy chime
     generate_sound("win.wav", 0.5, 660, type='square')
+    # Break: Noise crunch
+    generate_sound("break.wav", 0.1, 50, type='noise')
 
     pygame.quit()

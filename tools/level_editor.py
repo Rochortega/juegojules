@@ -80,6 +80,7 @@ class LevelEditor:
             self.assets['P'] = pygame.image.load('assets/sprites/player_idle.png').convert_alpha()
             self.assets['E'] = pygame.image.load('assets/sprites/enemy.png').convert_alpha()
             self.assets['F'] = pygame.image.load('assets/sprites/tile_goal.png').convert_alpha()
+            self.assets['B'] = pygame.image.load('assets/sprites/tile_brick.png').convert_alpha()
         except FileNotFoundError:
             print("Warning: Assets not found.")
             self.assets['X'] = self.create_solid(TILE_SIZE, (100, 50, 0))
@@ -211,6 +212,7 @@ class LevelEditor:
                 if event.key == pygame.K_2: self.current_tile = 'P'
                 if event.key == pygame.K_3: self.current_tile = 'E'
                 if event.key == pygame.K_4: self.current_tile = 'F'
+                if event.key == pygame.K_5: self.current_tile = 'B'
                 if event.key == pygame.K_0: self.current_tile = '.'
 
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -223,7 +225,7 @@ class LevelEditor:
                          mx, my = event.pos
                          if 150 < my < 450: # Palette area
                              idx = (my - 150) // 50
-                             tiles = ['X', 'P', 'E', 'F', '.']
+                             tiles = ['X', 'P', 'E', 'F', 'B', '.']
                              if 0 <= idx < len(tiles):
                                  self.current_tile = tiles[idx]
 
@@ -308,8 +310,8 @@ class LevelEditor:
 
         # Palette (Simple)
         y = 150
-        tiles = ['X', 'P', 'E', 'F', '.']
-        labels = ['Ground', 'Player', 'Enemy', 'Goal', 'Eraser']
+        tiles = ['X', 'P', 'E', 'F', 'B', '.']
+        labels = ['Ground', 'Player', 'Enemy', 'Goal', 'Brick', 'Eraser']
 
         for i, t in enumerate(tiles):
             rect = pygame.Rect(SCREEN_WIDTH - 130, y, 32, 32)
