@@ -68,22 +68,26 @@ class Player(pygame.sprite.Sprite):
             self.jump()
 
         # Joystick Input (Simple implementation)
+        # Check globally initialized joystick in pygame
         if pygame.joystick.get_count() > 0:
-            joystick = pygame.joystick.Joystick(0)
-            joystick.init()
+            try:
+                # We assume joystick 0 is initialized in Game class
+                joystick = pygame.joystick.Joystick(0)
 
-            # Horizontal axis usually 0
-            axis_x = joystick.get_axis(0)
-            if axis_x > 0.5:
-                self.direction.x = 1
-                self.facing_right = True
-            elif axis_x < -0.5:
-                self.direction.x = -1
-                self.facing_right = False
+                # Horizontal axis usually 0
+                axis_x = joystick.get_axis(0)
+                if axis_x > 0.5:
+                    self.direction.x = 1
+                    self.facing_right = True
+                elif axis_x < -0.5:
+                    self.direction.x = -1
+                    self.facing_right = False
 
-            # Button 0 or 1 usually jump (A or B)
-            if (joystick.get_button(0) or joystick.get_button(1)) and self.on_ground:
-                self.jump()
+                # Button 0 or 1 usually jump (A or B)
+                if (joystick.get_button(0) or joystick.get_button(1)) and self.on_ground:
+                    self.jump()
+            except pygame.error:
+                pass # Joystick not initialized or disconnected
 
     def apply_gravity(self):
         self.direction.y += self.gravity

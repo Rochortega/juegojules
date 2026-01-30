@@ -366,6 +366,32 @@ def generate_sprites():
     ]
     create_pixel_art_sprite(16, 16, brick_pattern_2, brick_palette, "assets/sprites/tile_brick.png")
 
+    # Coin
+    coin_palette = {
+        '.': TRANSPARENT,
+        'Y': (255, 215, 0), # Gold
+        'L': (255, 255, 200) # Shine
+    }
+    coin_pattern = [
+        "................",
+        "................",
+        ".....YYYYY......",
+        "....YYYYYYY.....",
+        "...YYYLYYYYY....",
+        "...YYLLYYYYY....",
+        "..YYYYYYYYYYY...",
+        "..YYYYYYYYYYY...",
+        "..YYYYYYYYYYY...",
+        "..YYYYYYYYYYY...",
+        "..YYYYYYYYYYY...",
+        "...YYYYYYYYY....",
+        "...YYYYYYYYY....",
+        "....YYYYYYY.....",
+        ".....YYYYY......",
+        "................",
+    ]
+    create_pixel_art_sprite(16, 16, coin_pattern, coin_palette, "assets/sprites/tile_coin.png")
+
 def generate_sound(filename, duration, freq, volume=0.5, type='square'):
     sample_rate = 44100
     n_samples = int(sample_rate * duration)
@@ -414,5 +440,7 @@ if __name__ == "__main__":
     generate_sound("win.wav", 0.5, 660, type='square')
     # Break: Noise crunch
     generate_sound("break.wav", 0.1, 50, type='noise')
+    # Coin Pickup: High ping
+    generate_sound("pickup.wav", 0.1, 1000, type='square')
 
     pygame.quit()

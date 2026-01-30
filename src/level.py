@@ -3,6 +3,7 @@ from src.settings import *
 from src.tile import Tile
 from src.player import Player
 from src.enemy import Enemy
+from src.coin import Coin
 
 class Level:
     def __init__(self, level_data, surface):
@@ -18,9 +19,15 @@ class Level:
         self.win_sound.set_volume(0.5)
         self.break_sound = pygame.mixer.Sound('assets/sounds/break.wav')
         self.break_sound.set_volume(0.5)
+        self.coin_sound = pygame.mixer.Sound('assets/sounds/pickup.wav')
+        self.coin_sound.set_volume(0.4)
 
         # UI
         self.heart_img = pygame.image.load('assets/sprites/ui_heart.png').convert_alpha()
+        self.coin_img = pygame.image.load('assets/sprites/tile_coin.png').convert_alpha()
+        self.font = pygame.font.SysFont('arial', 16, bold=True)
+
+        self.score = 0
 
     def setup_level(self, level_data):
         self.bg_tiles = pygame.sprite.Group()
@@ -29,6 +36,7 @@ class Level:
 
         self.goal = pygame.sprite.GroupSingle()
         self.enemies = pygame.sprite.Group()
+        self.coins = pygame.sprite.Group()
         self.player = pygame.sprite.GroupSingle()
 
         # Handle Dictionary (Multi-layer) vs List (Legacy/Single Layer)
@@ -66,6 +74,9 @@ class Level:
                         if cell == 'E':
                             enemy = Enemy((x, y))
                             self.enemies.add(enemy)
+                        if cell == 'C':
+                            coin = Coin((x, y))
+                            self.coins.add(coin)
 
         if 'bg' in layers: process_layer(layers['bg'], self.bg_tiles)
         if 'main' in layers: process_layer(layers['main'], self.tiles, is_main=True)
@@ -75,6 +86,7 @@ class Level:
         self.player.sprite.rect.topleft = self.start_pos
         self.player.sprite.direction = pygame.math.Vector2(0, 0)
         self.player.sprite.health = 3 # Reset health
+        self.score = 0 # Reset score? Usually yes in retro games
         # Reset level shift?
         # Since we shift tiles, resetting player to start_pos (which is relative to initial world) won't work
         # if the world has shifted.
@@ -89,6 +101,14 @@ class Level:
             self.win_sound.play()
             print("YOU WIN!")
             self.respawn() # Just restart level on win for now
+
+    def check_coin_collisions(self):
+        player = self.player.sprite
+        # Check collision
+        hits = pygame.sprite.spritecollide(player, self.coins, True)
+        if hits:
+            self.coin_sound.play()
+            self.score += len(hits)
 
     def check_enemy_collisions(self):
         player = self.player.sprite
@@ -191,6 +211,12 @@ class Level:
             y = 10
             self.display_surface.blit(self.heart_img, (x, y))
 
+        # Draw Score
+        score_surf = self.font.render(f"x {self.score}", False, (255, 255, 255))
+        score_rect = score_surf.get_rect(topleft=(80, 10))
+        self.display_surface.blit(self.coin_img, (60, 10)) # Icon
+        self.display_surface.blit(score_surf, score_rect)
+
     def run(self):
         # Check death
         if self.player.sprite.rect.top > INTERNAL_HEIGHT:
@@ -214,16 +240,19 @@ class Level:
 
         self.check_goal()
         self.check_enemy_collisions()
+        self.check_coin_collisions()
 
         self.bg_tiles.update(self.world_shift)
         self.tiles.update(self.world_shift)
         self.fg_tiles.update(self.world_shift)
         self.goal.update(self.world_shift)
         self.enemies.update(self.world_shift)
+        self.coins.update(self.world_shift)
 
-        # Draw Order: BG -> Main -> Player/Enemies -> FG
+        # Draw Order: BG -> Main -> Player/Enemies/Coins -> FG
         self.bg_tiles.draw(self.display_surface)
         self.tiles.draw(self.display_surface)
+        self.coins.draw(self.display_surface)
         self.goal.draw(self.display_surface)
         self.enemies.draw(self.display_surface)
         self.player.draw(self.display_surface)

@@ -17,9 +17,12 @@ class Game:
 
         # Joysticks
         pygame.joystick.init()
+        self.joysticks = []
         if pygame.joystick.get_count() > 0:
             for i in range(pygame.joystick.get_count()):
-                pygame.joystick.Joystick(i).init()
+                j = pygame.joystick.Joystick(i)
+                j.init()
+                self.joysticks.append(j)
 
         self.running = True
         self.state = 'MENU' # MENU, PLAY
