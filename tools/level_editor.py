@@ -82,6 +82,9 @@ class LevelEditor:
             self.assets['F'] = pygame.image.load('assets/sprites/tile_goal.png').convert_alpha()
             self.assets['B'] = pygame.image.load('assets/sprites/tile_brick.png').convert_alpha()
             self.assets['C'] = pygame.image.load('assets/sprites/tile_coin.png').convert_alpha()
+            self.assets['H'] = pygame.image.load('assets/sprites/item_potion.png').convert_alpha()
+            self.assets['W'] = pygame.image.load('assets/sprites/enemy_bat.png').convert_alpha()
+            self.assets['K'] = pygame.image.load('assets/sprites/enemy_boss.png').convert_alpha()
         except FileNotFoundError:
             print("Warning: Assets not found.")
             self.assets['X'] = self.create_solid(TILE_SIZE, (100, 50, 0))
@@ -215,6 +218,9 @@ class LevelEditor:
                 if event.key == pygame.K_4: self.current_tile = 'F'
                 if event.key == pygame.K_5: self.current_tile = 'B'
                 if event.key == pygame.K_6: self.current_tile = 'C'
+                if event.key == pygame.K_7: self.current_tile = 'H'
+                if event.key == pygame.K_8: self.current_tile = 'W'
+                if event.key == pygame.K_9: self.current_tile = 'K'
                 if event.key == pygame.K_0: self.current_tile = '.'
 
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -225,9 +231,9 @@ class LevelEditor:
                             btn.check_click(event.pos)
                          # Palette click check (simple hardcoded for now)
                          mx, my = event.pos
-                         if 150 < my < 500: # Palette area
+                         if 150 < my < 650: # Palette area
                              idx = (my - 150) // 50
-                             tiles = ['X', 'P', 'E', 'F', 'B', 'C', '.']
+                             tiles = ['X', 'P', 'E', 'F', 'B', 'C', 'H', 'W', 'K', '.']
                              if 0 <= idx < len(tiles):
                                  self.current_tile = tiles[idx]
 
@@ -312,8 +318,8 @@ class LevelEditor:
 
         # Palette (Simple)
         y = 150
-        tiles = ['X', 'P', 'E', 'F', 'B', 'C', '.']
-        labels = ['Ground', 'Player', 'Enemy', 'Goal', 'Brick', 'Coin', 'Eraser']
+        tiles = ['X', 'P', 'E', 'F', 'B', 'C', 'H', 'W', 'K', '.']
+        labels = ['Ground', 'Player', 'Enemy', 'Goal', 'Brick', 'Coin', 'Potion', 'Bat', 'King', 'Eraser']
 
         for i, t in enumerate(tiles):
             rect = pygame.Rect(SCREEN_WIDTH - 130, y, 32, 32)

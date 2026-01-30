@@ -392,6 +392,124 @@ def generate_sprites():
     ]
     create_pixel_art_sprite(16, 16, coin_pattern, coin_palette, "assets/sprites/tile_coin.png")
 
+    # Potion
+    potion_palette = {
+        '.': TRANSPARENT,
+        'R': (255, 50, 50),
+        'W': (255, 255, 255),
+        'G': (200, 200, 200) # Glass
+    }
+    potion_pattern = [
+        "................",
+        "................",
+        "......GW........",
+        "......GG........",
+        ".....G..G.......",
+        "....G....G......",
+        "....GRRRRG......",
+        "....GRRRRG......",
+        "....GRRRRG......",
+        "....GRRRRG......",
+        "....GRRRRG......",
+        ".....GRRG.......",
+        "......GG........",
+        "................",
+        "................",
+        "................",
+    ]
+    create_pixel_art_sprite(16, 16, potion_pattern, potion_palette, "assets/sprites/item_potion.png")
+
+    # Bat (Flying Enemy)
+    bat_palette = {
+        '.': TRANSPARENT,
+        'B': (50, 0, 50),
+        'P': (100, 0, 100),
+        'W': (255, 255, 255) # Eyes
+    }
+    bat_pattern = [
+        "................",
+        "................",
+        "................",
+        "B..............B",
+        ".B............B.",
+        "..B..........B..",
+        "...B..BBBB..B...",
+        "....BBPPPPBB....",
+        "....BPWPPWPB....",
+        "....BPPPPPPB....",
+        ".....BBBBBB.....",
+        "......B..B......",
+        "................",
+        "................",
+        "................",
+        "................",
+    ]
+    create_pixel_art_sprite(16, 16, bat_pattern, bat_palette, "assets/sprites/enemy_bat.png")
+
+    # Boss (King)
+    # 32x32 maybe? Or just 16x16 big sprite. Editor assumes 16x16 tiles.
+    # We can generate a 32x32 image but place it on grid.
+    boss_palette = {
+        '.': TRANSPARENT,
+        'G': (255, 215, 0), # Gold Crown
+        'P': (128, 0, 128), # Purple Robe
+        'S': (255, 200, 150) # Skin
+    }
+    boss_pattern = [
+        "................",
+        "................",
+        ".....GGGGGG.....",
+        "....GGGGGGGG....",
+        "....SSSSSSSS....",
+        "....S.S..S.S....",
+        "....SSSSSSSS....",
+        "....PPPPPPPP....",
+        "....PPPPPPPP....",
+        "....PPPPPPPP....",
+        "....PPPPPPPP....",
+        "....PPPPPPPP....",
+        "....PPPPPPPP....",
+        "....SS....SS....",
+        "................",
+        "................",
+    ]
+    # Scale up manually to 32x32 for intimidation?
+    # For now keep 16x16 so it fits tile logic easily
+    create_pixel_art_sprite(16, 16, boss_pattern, boss_palette, "assets/sprites/enemy_boss.png")
+
+def generate_music_loop(filename, duration=8.0):
+    sample_rate = 44100
+    n_samples = int(sample_rate * duration)
+
+    ensure_dir("assets/sounds")
+    filepath = os.path.join("assets/sounds", filename)
+
+    # Simple melody (C major arpeggio loop)
+    # Notes: C4, E4, G4, C5 -> 261.63, 329.63, 392.00, 523.25
+    notes = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63, 261.63, 196.00]
+    note_duration = duration / len(notes)
+
+    with wave.open(filepath, 'w') as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+
+        for i in range(n_samples):
+            current_note_idx = int((i / sample_rate) / note_duration) % len(notes)
+            freq = notes[current_note_idx]
+            t = i / sample_rate
+
+            # Square wave with envelope
+            val = 1.0 if math.sin(2 * math.pi * freq * t) > 0 else -1.0
+
+            # Simple beat/envelope per note
+            local_t = (i / sample_rate) % note_duration
+            vol = 0.3 * (1 - local_t / note_duration)
+
+            sample = int(val * vol * 32767.0)
+            wav_file.writeframes(struct.pack('<h', sample))
+    print(f"Generated {filepath}")
+
 def generate_sound(filename, duration, freq, volume=0.5, type='square'):
     sample_rate = 44100
     n_samples = int(sample_rate * duration)
@@ -442,5 +560,8 @@ if __name__ == "__main__":
     generate_sound("break.wav", 0.1, 50, type='noise')
     # Coin Pickup: High ping
     generate_sound("pickup.wav", 0.1, 1000, type='square')
+
+    # Music
+    generate_music_loop("music.wav")
 
     pygame.quit()

@@ -32,6 +32,14 @@ class Game:
         self.level_file = level_file
         self.load_level()
 
+        # Music
+        try:
+            pygame.mixer.music.load('assets/sounds/music.wav')
+            pygame.mixer.music.set_volume(0.3)
+            pygame.mixer.music.play(-1) # Loop
+        except Exception as e:
+            print(f"Music error: {e}")
+
     def load_level(self):
         level_map = load_level_map(self.level_file)
         self.level = Level(level_map, self.virtual_screen)

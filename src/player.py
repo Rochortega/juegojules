@@ -17,6 +17,10 @@ class Player(pygame.sprite.Sprite):
         self.gravity = GRAVITY
         self.jump_speed = PLAYER_JUMP_FORCE
 
+        # Jumping
+        self.jump_count = 0
+        self.max_jumps = 2
+
         # Status
         self.status = 'idle'
         self.facing_right = True
@@ -28,6 +32,10 @@ class Player(pygame.sprite.Sprite):
         self.invincible = False
         self.invincibility_duration = 1000 # ms
         self.hurt_time = 0
+
+        # Input Debounce
+        self.prev_space_pressed = False
+        self.prev_joy_jump = False
 
     def import_assets(self):
         path = 'assets/sprites/'
@@ -64,8 +72,12 @@ class Player(pygame.sprite.Sprite):
         else:
             self.direction.x = 0
 
-        if keys[pygame.K_SPACE] and self.on_ground:
-            self.jump()
+        if keys[pygame.K_SPACE]:
+            if self.on_ground:
+                self.jump()
+            elif self.jump_count < self.max_jumps and not self.prev_space_pressed:
+                 self.jump()
+        self.prev_space_pressed = keys[pygame.K_SPACE]
 
         # Joystick Input (Simple implementation)
         # Check globally initialized joystick in pygame
@@ -84,8 +96,14 @@ class Player(pygame.sprite.Sprite):
                     self.facing_right = False
 
                 # Button 0 or 1 usually jump (A or B)
-                if (joystick.get_button(0) or joystick.get_button(1)) and self.on_ground:
-                    self.jump()
+                joy_jump = joystick.get_button(0) or joystick.get_button(1)
+                if joy_jump:
+                    if self.on_ground and not self.prev_joy_jump:
+                        self.jump()
+                    elif self.jump_count < self.max_jumps and not self.prev_joy_jump:
+                        self.jump()
+                self.prev_joy_jump = joy_jump
+
             except pygame.error:
                 pass # Joystick not initialized or disconnected
 
@@ -96,6 +114,7 @@ class Player(pygame.sprite.Sprite):
     def jump(self):
         self.direction.y = self.jump_speed
         self.on_ground = False
+        self.jump_count += 1
         self.jump_sound.play()
 
     def get_status(self):

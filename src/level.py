@@ -4,6 +4,9 @@ from src.tile import Tile
 from src.player import Player
 from src.enemy import Enemy
 from src.coin import Coin
+from src.potion import Potion
+from src.bat import Bat
+from src.boss import Boss
 
 class Level:
     def __init__(self, level_data, surface):
@@ -21,6 +24,8 @@ class Level:
         self.break_sound.set_volume(0.5)
         self.coin_sound = pygame.mixer.Sound('assets/sounds/pickup.wav')
         self.coin_sound.set_volume(0.4)
+        self.heal_sound = pygame.mixer.Sound('assets/sounds/pickup.wav') # Reuse for now
+        self.heal_sound.set_volume(0.4)
 
         # UI
         self.heart_img = pygame.image.load('assets/sprites/ui_heart.png').convert_alpha()
@@ -37,6 +42,7 @@ class Level:
         self.goal = pygame.sprite.GroupSingle()
         self.enemies = pygame.sprite.Group()
         self.coins = pygame.sprite.Group()
+        self.potions = pygame.sprite.Group()
         self.player = pygame.sprite.GroupSingle()
 
         # Handle Dictionary (Multi-layer) vs List (Legacy/Single Layer)
@@ -77,6 +83,15 @@ class Level:
                         if cell == 'C':
                             coin = Coin((x, y))
                             self.coins.add(coin)
+                        if cell == 'H':
+                            pot = Potion((x, y))
+                            self.potions.add(pot)
+                        if cell == 'W':
+                            bat = Bat((x, y))
+                            self.enemies.add(bat) # Add to enemies group for collision logic
+                        if cell == 'K':
+                            boss = Boss((x, y))
+                            self.enemies.add(boss)
 
         if 'bg' in layers: process_layer(layers['bg'], self.bg_tiles)
         if 'main' in layers: process_layer(layers['main'], self.tiles, is_main=True)
@@ -110,6 +125,13 @@ class Level:
             self.coin_sound.play()
             self.score += len(hits)
 
+        # Check Potions
+        hits = pygame.sprite.spritecollide(player, self.potions, True)
+        if hits:
+            self.heal_sound.play()
+            if player.health < player.max_health:
+                player.health += 1
+
     def check_enemy_collisions(self):
         player = self.player.sprite
         # Check collision with enemies
@@ -120,7 +142,11 @@ class Level:
                 if player.direction.y > 0 and player.rect.bottom < enemy.rect.centery + 5:
                     self.hit_sound.play() # Reuse hit sound for kill for now
                     player.direction.y = -6 # Bounce
-                    enemy.kill()
+
+                    if hasattr(enemy, 'hit'): # Boss logic
+                        enemy.hit()
+                    else:
+                        enemy.kill()
                 else:
                     if not player.invincible:
                         # Player hurts
@@ -185,6 +211,9 @@ class Level:
         if player.on_ground and player.direction.y < 0 or player.direction.y > 1:
             player.on_ground = False
 
+        if player.on_ground:
+            player.jump_count = 0
+
     def scroll_x(self):
         player = self.player.sprite
         player_x = player.rect.centerx
@@ -248,11 +277,13 @@ class Level:
         self.goal.update(self.world_shift)
         self.enemies.update(self.world_shift)
         self.coins.update(self.world_shift)
+        self.potions.update(self.world_shift)
 
         # Draw Order: BG -> Main -> Player/Enemies/Coins -> FG
         self.bg_tiles.draw(self.display_surface)
         self.tiles.draw(self.display_surface)
         self.coins.draw(self.display_surface)
+        self.potions.draw(self.display_surface)
         self.goal.draw(self.display_surface)
         self.enemies.draw(self.display_surface)
         self.player.draw(self.display_surface)
