@@ -78,19 +78,19 @@ class Level:
         player_x = player.rect.centerx
         direction_x = player.direction.x
 
-        # Camera logic: scroll when player approaches edges (1/4 of screen width)
-        # Internal width is 320.
-        # Left limit: 80, Right limit: 240
+        # Camera logic: Keep player centered
+        # Internal width is 320. Center is 160.
+        # We give a small buffer (deadzone) so it doesn't jitter on every pixel move.
 
-        if player_x < 80 and direction_x < 0:
-            self.world_shift = player.speed
+        if player_x < 140 and direction_x < 0:
+            self.world_shift = PLAYER_SPEED
             player.speed = 0
-        elif player_x > 240 and direction_x > 0:
-            self.world_shift = -player.speed
+        elif player_x > 180 and direction_x > 0:
+            self.world_shift = -PLAYER_SPEED
             player.speed = 0
         else:
             self.world_shift = 0
-            player.speed = PLAYER_SPEED # Reset speed from settings
+            player.speed = PLAYER_SPEED
 
     def run(self):
         # Check death
