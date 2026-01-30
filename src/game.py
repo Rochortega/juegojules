@@ -2,10 +2,10 @@ import pygame
 import sys
 from src.settings import *
 from src.level import Level
-from src.map_data import level_map
+from src.map_loader import load_level_map
 
 class Game:
-    def __init__(self):
+    def __init__(self, level_file='levels/level_01.txt'):
         pygame.init()
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption(TITLE)
@@ -21,6 +21,8 @@ class Game:
                 pygame.joystick.Joystick(i).init()
 
         self.running = True
+
+        level_map = load_level_map(level_file)
         self.level = Level(level_map, self.virtual_screen)
 
     def run(self):
