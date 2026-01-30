@@ -5,7 +5,7 @@ from src.level import Level
 from src.map_loader import load_level_map
 
 class Game:
-    def __init__(self, level_file='levels/level_01.txt'):
+    def __init__(self, level_file='levels/level_01.json'):
         pygame.init()
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption(TITLE)

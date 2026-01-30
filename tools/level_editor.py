@@ -1,179 +1,341 @@
+import sys; sys.path.append(".")
 import pygame
 import sys
 import os
+import json
+from src.map_loader import load_level_map, save_level_map
 
 # Configuration
 TILE_SIZE = 16
-SCREEN_WIDTH = 800
+SCREEN_WIDTH = 960 # Expanded for sidebar
 SCREEN_HEIGHT = 600
-MAP_HEIGHT = 15 # 240 / 16
-# Define map width as arbitrarily large for editing
+MAP_HEIGHT = 15
 MAP_WIDTH = 200
+SIDEBAR_WIDTH = 160
 
 # Colors
-BG_COLOR = (50, 50, 50)
+BG_COLOR = (40, 40, 40)
 GRID_COLOR = (100, 100, 100)
 TEXT_COLOR = (255, 255, 255)
+HIGHLIGHT_COLOR = (255, 200, 0)
+ERROR_COLOR = (255, 50, 50)
+SIDEBAR_BG = (60, 60, 70)
+
+class Button:
+    def __init__(self, rect, text, callback, color=(100, 100, 100), hover_color=(150, 150, 150)):
+        self.rect = pygame.Rect(rect)
+        self.text = text
+        self.callback = callback
+        self.color = color
+        self.hover_color = hover_color
+        self.font = pygame.font.SysFont('arial', 16)
+
+    def draw(self, surface):
+        mouse_pos = pygame.mouse.get_pos()
+        color = self.hover_color if self.rect.collidepoint(mouse_pos) else self.color
+        pygame.draw.rect(surface, color, self.rect)
+        pygame.draw.rect(surface, (200, 200, 200), self.rect, 2)
+
+        text_surf = self.font.render(self.text, True, (255, 255, 255))
+        text_rect = text_surf.get_rect(center=self.rect.center)
+        surface.blit(text_surf, text_rect)
+
+    def check_click(self, pos):
+        if self.rect.collidepoint(pos):
+            self.callback()
 
 class LevelEditor:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Level Editor")
+        pygame.display.set_caption("SNES Level Editor")
         self.clock = pygame.time.Clock()
-
         self.font = pygame.font.SysFont('arial', 18)
 
         self.scroll_x = 0
         self.scroll_speed = 8
+        self.show_grid = True
 
-        # Load Assets for Preview
+        # Load Assets
         self.assets = {}
+        self.load_assets()
+
+        # Editor State
+        self.current_tile = 'X'
+        self.current_layer = 'main' # bg, main, fg
+        self.layers = {'bg': {}, 'main': {}, 'fg': {}} # Use dicts for sparse grid
+        self.current_filename = "levels/level_new.json"
+
+        self.status_message = ""
+        self.status_timer = 0
+
+        self.state = "WELCOME" # WELCOME, EDIT
+
+        # UI Elements
+        self.setup_ui()
+
+    def load_assets(self):
         try:
             self.assets['X'] = pygame.image.load('assets/sprites/tile_ground.png').convert_alpha()
             self.assets['P'] = pygame.image.load('assets/sprites/player_idle.png').convert_alpha()
             self.assets['E'] = pygame.image.load('assets/sprites/enemy.png').convert_alpha()
             self.assets['F'] = pygame.image.load('assets/sprites/tile_goal.png').convert_alpha()
         except FileNotFoundError:
-            print("Warning: Assets not found. Run generate_assets.py first.")
-            # Fallback colors
+            print("Warning: Assets not found.")
             self.assets['X'] = self.create_solid(TILE_SIZE, (100, 50, 0))
-            self.assets['P'] = self.create_solid(TILE_SIZE, (0, 0, 255))
-            self.assets['E'] = self.create_solid(TILE_SIZE, (255, 0, 0))
-            self.assets['F'] = self.create_solid(TILE_SIZE, (255, 255, 0))
-
-        self.current_tile = 'X'
-        self.tiles = {} # Key: (x, y), Value: Char
-
-        self.load_map("levels/level_01.txt")
-
-        self.running = True
 
     def create_solid(self, size, color):
         s = pygame.Surface((size, size))
         s.fill(color)
         return s
 
+    def setup_ui(self):
+        self.buttons = []
+        # Layer Toggles
+        self.buttons.append(Button((SCREEN_WIDTH - 150, 10, 140, 30), "Layer: BG", lambda: self.set_layer('bg'), color=(50, 50, 80)))
+        self.buttons.append(Button((SCREEN_WIDTH - 150, 45, 140, 30), "Layer: MAIN", lambda: self.set_layer('main'), color=(80, 50, 50)))
+        self.buttons.append(Button((SCREEN_WIDTH - 150, 80, 140, 30), "Layer: FG", lambda: self.set_layer('fg'), color=(50, 80, 50)))
+
+        # Save
+        self.buttons.append(Button((SCREEN_WIDTH - 150, 500, 140, 40), "SAVE", self.save_map))
+
+        # Welcome Screen Buttons
+        self.welcome_buttons = []
+        self.welcome_buttons.append(Button((SCREEN_WIDTH//2 - 100, 200, 200, 50), "Create New Level", self.new_level))
+        self.welcome_buttons.append(Button((SCREEN_WIDTH//2 - 100, 270, 200, 50), "Load Level 01", lambda: self.load_map("levels/level_01.json")))
+
+    def set_layer(self, layer):
+        self.current_layer = layer
+        self.show_status(f"Editing {layer.upper()} Layer")
+
+    def show_status(self, msg):
+        self.status_message = msg
+        self.status_timer = 120 # 2 seconds
+
+    def new_level(self):
+        self.layers = {'bg': {}, 'main': {}, 'fg': {}}
+        self.current_filename = "levels/level_new.json"
+        self.state = "EDIT"
+
     def load_map(self, filepath):
-        self.tiles = {}
-        if os.path.exists(filepath):
-            with open(filepath, 'r') as f:
-                lines = [line.rstrip() for line in f.readlines()]
-                for y, line in enumerate(lines):
-                    for x, char in enumerate(line):
+        # Handle conversion from legacy list to dict format for editor
+        data = load_level_map(filepath)
+        self.layers = {'bg': {}, 'main': {}, 'fg': {}}
+
+        for layer_name in ['bg', 'main', 'fg']:
+            if layer_name in data:
+                rows = data[layer_name]
+                for y, row in enumerate(rows):
+                    for x, char in enumerate(row):
                         if char != '.':
-                            self.tiles[(x, y)] = char
-            print(f"Loaded {filepath}")
-        else:
-            print("File not found, starting empty.")
+                            self.layers[layer_name][(x, y)] = char
 
-    def save_map(self, filepath):
-        # Determine width
+        self.current_filename = filepath
+        self.state = "EDIT"
+        self.show_status(f"Loaded {filepath}")
+
+    def save_map(self):
+        # Convert sparse dicts to grid lists
+        # Find max width
         max_x = 0
-        if self.tiles:
-            max_x = max(k[0] for k in self.tiles.keys())
+        for layer in self.layers.values():
+            if layer:
+                mx = max(k[0] for k in layer.keys()) if layer else 0
+                max_x = max(max_x, mx)
 
-        # Ensure at least screen width or some default
         width = max(max_x + 1, 20)
         height = MAP_HEIGHT
 
-        lines = []
-        for y in range(height):
-            line = ""
-            for x in range(width):
-                line += self.tiles.get((x, y), '.')
-            lines.append(line)
+        export_data = {}
+        for layer_name, tiles in self.layers.items():
+            grid = []
+            for y in range(height):
+                row = ""
+                for x in range(width):
+                    row += tiles.get((x, y), '.')
+                grid.append(row)
+            export_data[layer_name] = grid
 
-        with open(filepath, 'w') as f:
-            for line in lines:
-                f.write(line + "\n")
-        print(f"Saved to {filepath}")
+        save_level_map(self.current_filename, export_data)
+        self.show_status(f"Saved to {self.current_filename}")
 
     def run(self):
-        while self.running:
+        while True:
             self.clock.tick(60)
-            self.events()
-            self.update()
-            self.draw()
+            if self.state == "WELCOME":
+                self.run_welcome()
+            elif self.state == "EDIT":
+                self.run_editor()
 
-    def events(self):
+            if pygame.event.get(pygame.QUIT):
+                break
+        pygame.quit()
+
+    def run_welcome(self):
+        self.screen.fill(BG_COLOR)
+
+        title = self.font.render("SNES PLATFORMER EDITOR", True, TEXT_COLOR)
+        self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 100))
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                self.running = False
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    for btn in self.welcome_buttons:
+                        btn.check_click(event.pos)
 
+        for btn in self.welcome_buttons:
+            btn.draw(self.screen)
+        pygame.display.flip()
+
+    def run_editor(self):
+        self.handle_input()
+        self.draw_editor()
+
+    def handle_input(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]: self.scroll_x -= self.scroll_speed
+        if keys[pygame.K_RIGHT]: self.scroll_x += self.scroll_speed
+        if self.scroll_x < 0: self.scroll_x = 0
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
             if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_g: self.show_grid = not self.show_grid
+                # Hotkeys
                 if event.key == pygame.K_1: self.current_tile = 'X'
                 if event.key == pygame.K_2: self.current_tile = 'P'
                 if event.key == pygame.K_3: self.current_tile = 'E'
                 if event.key == pygame.K_4: self.current_tile = 'F'
-                if event.key == pygame.K_0: self.current_tile = '.' # Eraser
+                if event.key == pygame.K_0: self.current_tile = '.'
 
-                if event.key == pygame.K_s:
-                    self.save_map("levels/level_01.txt")
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    # Check UI clicks
+                    if pygame.mouse.get_pos()[0] > SCREEN_WIDTH - SIDEBAR_WIDTH:
+                         for btn in self.buttons:
+                            btn.check_click(event.pos)
+                         # Palette click check (simple hardcoded for now)
+                         mx, my = event.pos
+                         if 150 < my < 450: # Palette area
+                             idx = (my - 150) // 50
+                             tiles = ['X', 'P', 'E', 'F', '.']
+                             if 0 <= idx < len(tiles):
+                                 self.current_tile = tiles[idx]
 
-                if event.key == pygame.K_n:
-                     # Create new file example
-                    self.save_map("levels/new_level.txt")
-
-        # Mouse Handling
-        buttons = pygame.mouse.get_pressed()
-        if buttons[0] or buttons[2]: # Left or Right Click
+        # Painting
+        if pygame.mouse.get_pressed()[0] or pygame.mouse.get_pressed()[2]:
             mx, my = pygame.mouse.get_pos()
+            if mx < SCREEN_WIDTH - SIDEBAR_WIDTH: # Only in map area
+                world_x = mx + self.scroll_x
+                grid_x = int(world_x // TILE_SIZE)
+                grid_y = int(my // TILE_SIZE)
 
-            # Adjust for camera
-            world_x = mx + self.scroll_x
-            world_y = my
+                if 0 <= grid_y < MAP_HEIGHT and grid_x >= 0:
+                    if pygame.mouse.get_pressed()[0]:
+                        if self.current_tile == '.':
+                            if (grid_x, grid_y) in self.layers[self.current_layer]:
+                                del self.layers[self.current_layer][(grid_x, grid_y)]
+                        else:
+                            self.layers[self.current_layer][(grid_x, grid_y)] = self.current_tile
+                    elif pygame.mouse.get_pressed()[2]: # Right click erase
+                         if (grid_x, grid_y) in self.layers[self.current_layer]:
+                                del self.layers[self.current_layer][(grid_x, grid_y)]
 
-            grid_x = int(world_x // TILE_SIZE)
-            grid_y = int(world_y // TILE_SIZE)
-
-            if 0 <= grid_y < MAP_HEIGHT and grid_x >= 0:
-                if buttons[0]:
-                    self.tiles[(grid_x, grid_y)] = self.current_tile
-                elif buttons[2]: # Right click erase
-                    if (grid_x, grid_y) in self.tiles:
-                        del self.tiles[(grid_x, grid_y)]
-
-    def update(self):
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            self.scroll_x -= self.scroll_speed
-        if keys[pygame.K_RIGHT]:
-            self.scroll_x += self.scroll_speed
-
-        if self.scroll_x < 0: self.scroll_x = 0
-
-    def draw(self):
+    def draw_editor(self):
         self.screen.fill(BG_COLOR)
 
-        # Draw Tiles
-        # Optimize: only draw visible range
+        # visible range
         start_col = int(self.scroll_x // TILE_SIZE)
-        end_col = start_col + (SCREEN_WIDTH // TILE_SIZE) + 1
+        end_col = start_col + ((SCREEN_WIDTH - SIDEBAR_WIDTH) // TILE_SIZE) + 1
 
-        for y in range(MAP_HEIGHT):
-            for x in range(start_col, end_col):
-                # Draw grid
-                rect = pygame.Rect(x * TILE_SIZE - self.scroll_x, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-                pygame.draw.rect(self.screen, GRID_COLOR, rect, 1)
+        # Draw Layers
+        # Inactive layers dimmed
+        layers_order = ['bg', 'main', 'fg']
+        for layer_name in layers_order:
+            tiles = self.layers[layer_name]
+            is_active = (layer_name == self.current_layer)
 
-                char = self.tiles.get((x, y))
-                if char and char != '.':
+            for (gx, gy), char in tiles.items():
+                if start_col <= gx <= end_col:
+                    screen_x = gx * TILE_SIZE - self.scroll_x
+                    screen_y = gy * TILE_SIZE
+
                     if char in self.assets:
-                        self.screen.blit(self.assets[char], rect)
+                        img = self.assets[char]
+                        if not is_active:
+                            # Dimming hack: draw black rect with alpha on top?
+                            # Or just use img with less alpha if supported
+                            img = img.copy()
+                            img.set_alpha(100)
+                        self.screen.blit(img, (screen_x, screen_y))
 
-        # UI
-        ui_text = f"Tile: {self.current_tile} | Pos: {int(self.scroll_x)}"
-        ui_surf = self.font.render(ui_text, True, TEXT_COLOR)
-        self.screen.blit(ui_surf, (10, SCREEN_HEIGHT - 30))
+        # Grid
+        if self.show_grid:
+            for x in range(start_col, end_col):
+                pygame.draw.line(self.screen, GRID_COLOR, (x * TILE_SIZE - self.scroll_x, 0), (x * TILE_SIZE - self.scroll_x, SCREEN_HEIGHT))
+            for y in range(MAP_HEIGHT + 1):
+                pygame.draw.line(self.screen, GRID_COLOR, (0, y * TILE_SIZE), (SCREEN_WIDTH - SIDEBAR_WIDTH, y * TILE_SIZE))
 
-        instructions = "1:Ground 2:Player 3:Enemy 4:Flag 0:Erase | S:Save | Arrows:Scroll"
-        inst_surf = self.font.render(instructions, True, TEXT_COLOR)
-        self.screen.blit(inst_surf, (10, SCREEN_HEIGHT - 60))
+        # Ghost Tile
+        mx, my = pygame.mouse.get_pos()
+        if mx < SCREEN_WIDTH - SIDEBAR_WIDTH:
+            grid_x = int((mx + self.scroll_x) // TILE_SIZE)
+            grid_y = int(my // TILE_SIZE)
+            screen_x = grid_x * TILE_SIZE - self.scroll_x
+            screen_y = grid_y * TILE_SIZE
+
+            if 0 <= grid_y < MAP_HEIGHT:
+                if self.current_tile != '.' and self.current_tile in self.assets:
+                    ghost = self.assets[self.current_tile].copy()
+                    ghost.set_alpha(128)
+                    self.screen.blit(ghost, (screen_x, screen_y))
+
+                # Selection Box
+                color = HIGHLIGHT_COLOR if self.current_tile != '.' else ERROR_COLOR
+                pygame.draw.rect(self.screen, color, (screen_x, screen_y, TILE_SIZE, TILE_SIZE), 1)
+
+        # Sidebar
+        pygame.draw.rect(self.screen, SIDEBAR_BG, (SCREEN_WIDTH - SIDEBAR_WIDTH, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT))
+
+        # Layer Buttons
+        for btn in self.buttons:
+            btn.draw(self.screen)
+
+        # Palette (Simple)
+        y = 150
+        tiles = ['X', 'P', 'E', 'F', '.']
+        labels = ['Ground', 'Player', 'Enemy', 'Goal', 'Eraser']
+
+        for i, t in enumerate(tiles):
+            rect = pygame.Rect(SCREEN_WIDTH - 130, y, 32, 32)
+
+            # Highlight selected
+            if self.current_tile == t:
+                pygame.draw.rect(self.screen, HIGHLIGHT_COLOR, (rect.x-2, rect.y-2, 36, 36), 2)
+
+            if t in self.assets:
+                scaled = pygame.transform.scale(self.assets[t], (32, 32))
+                self.screen.blit(scaled, rect)
+            else:
+                 pygame.draw.rect(self.screen, (0,0,0), rect, 1) # Eraser box
+
+            label = self.font.render(labels[i], True, TEXT_COLOR)
+            self.screen.blit(label, (SCREEN_WIDTH - 90, y + 5))
+
+            y += 50
+
+        # Status Message
+        if self.status_timer > 0:
+            self.status_timer -= 1
+            msg_surf = self.font.render(self.status_message, True, HIGHLIGHT_COLOR)
+            self.screen.blit(msg_surf, (10, SCREEN_HEIGHT - 30))
 
         pygame.display.flip()
 
 if __name__ == "__main__":
-    editor = LevelEditor()
-    editor.run()
-    pygame.quit()
+    LevelEditor().run()

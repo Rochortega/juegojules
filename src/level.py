@@ -17,36 +17,49 @@ class Level:
         self.win_sound = pygame.mixer.Sound('assets/sounds/win.wav')
         self.win_sound.set_volume(0.5)
 
-    def setup_level(self, layout):
-        self.tiles = pygame.sprite.Group()
+    def setup_level(self, level_data):
+        self.bg_tiles = pygame.sprite.Group()
+        self.tiles = pygame.sprite.Group() # Main layer (collision)
+        self.fg_tiles = pygame.sprite.Group()
+
         self.goal = pygame.sprite.GroupSingle()
         self.enemies = pygame.sprite.Group()
         self.player = pygame.sprite.GroupSingle()
-        # Invisible collision blocks for enemy patrol boundaries could be added,
-        # but for now we'll just reverse on wall collision if they hit walls.
 
-        for row_index, row in enumerate(layout):
-            for col_index, cell in enumerate(row):
-                x = col_index * 16 # 16 is tile size
-                y = row_index * 16
+        # Handle Dictionary (Multi-layer) vs List (Legacy/Single Layer)
+        if isinstance(level_data, list):
+            layers = {'main': level_data}
+        else:
+            layers = level_data
 
-                if cell == 'X':
-                    tile = Tile((x, y), 16)
-                    self.tiles.add(tile)
-                if cell == 'F':
-                    # Manually creating a tile with different image?
-                    # For simplicity, let's make Tile accept a type or create a Goal class.
-                    # Reusing Tile class but we need to swap image.
-                    tile = Tile((x, y), 16)
-                    tile.image = pygame.image.load('assets/sprites/tile_goal.png').convert_alpha()
-                    self.goal.add(tile)
-                if cell == 'P':
-                    player_sprite = Player((x, y))
-                    self.player.add(player_sprite)
-                    self.start_pos = (x, y) # Save start pos for respawn
-                if cell == 'E':
-                    enemy = Enemy((x, y))
-                    self.enemies.add(enemy)
+        # Helper to process a layer
+        def process_layer(layout, group, is_main=False):
+            for row_index, row in enumerate(layout):
+                for col_index, cell in enumerate(row):
+                    x = col_index * 16
+                    y = row_index * 16
+
+                    if cell == 'X':
+                        tile = Tile((x, y), 16)
+                        group.add(tile)
+
+                    # Only parse entities in Main layer to avoid duplicates or logic issues
+                    if is_main:
+                        if cell == 'F':
+                            tile = Tile((x, y), 16)
+                            tile.image = pygame.image.load('assets/sprites/tile_goal.png').convert_alpha()
+                            self.goal.add(tile)
+                        if cell == 'P':
+                            player_sprite = Player((x, y))
+                            self.player.add(player_sprite)
+                            self.start_pos = (x, y)
+                        if cell == 'E':
+                            enemy = Enemy((x, y))
+                            self.enemies.add(enemy)
+
+        if 'bg' in layers: process_layer(layers['bg'], self.bg_tiles)
+        if 'main' in layers: process_layer(layers['main'], self.tiles, is_main=True)
+        if 'fg' in layers: process_layer(layers['fg'], self.fg_tiles)
 
     def respawn(self):
         self.player.sprite.rect.topleft = self.start_pos
@@ -94,6 +107,7 @@ class Level:
         player = self.player.sprite
         player.rect.x += player.direction.x * player.speed
 
+        # Collision only with MAIN tiles
         for sprite in self.tiles.sprites():
             if sprite.rect.colliderect(player.rect):
                 if player.direction.x < 0:
@@ -163,11 +177,16 @@ class Level:
         self.check_goal()
         self.check_enemy_collisions()
 
+        self.bg_tiles.update(self.world_shift)
         self.tiles.update(self.world_shift)
+        self.fg_tiles.update(self.world_shift)
         self.goal.update(self.world_shift)
         self.enemies.update(self.world_shift)
 
-        self.player.draw(self.display_surface)
+        # Draw Order: BG -> Main -> Player/Enemies -> FG
+        self.bg_tiles.draw(self.display_surface)
         self.tiles.draw(self.display_surface)
         self.goal.draw(self.display_surface)
         self.enemies.draw(self.display_surface)
+        self.player.draw(self.display_surface)
+        self.fg_tiles.draw(self.display_surface)
