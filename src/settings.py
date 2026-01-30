@@ -1,0 +1,17 @@
+# Screen settings
+INTERNAL_WIDTH = 320
+INTERNAL_HEIGHT = 240
+SCALE = 2
+WINDOW_WIDTH = INTERNAL_WIDTH * SCALE
+WINDOW_HEIGHT = INTERNAL_HEIGHT * SCALE
+FPS = 60
+TITLE = "Retro Platformer"
+
+# Colors
+BG_COLOR = (30, 30, 30) # Dark grey background
+WHITE = (255, 255, 255)
+
+# Physics
+GRAVITY = 0.5 # Pixels per frame squared
+PLAYER_SPEED = 2
+PLAYER_JUMP_FORCE = -8
