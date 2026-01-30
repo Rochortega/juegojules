@@ -85,7 +85,8 @@ class Level:
         for enemy in self.enemies.sprites():
             if enemy.rect.colliderect(player.rect):
                 # If falling and above enemy -> Kill enemy
-                if player.direction.y > 0 and player.rect.bottom < enemy.rect.bottom:
+                # Adjusted for taller sprite: check if player bottom is within upper half of enemy
+                if player.direction.y > 0 and player.rect.bottom < enemy.rect.centery + 5:
                     self.hit_sound.play() # Reuse hit sound for kill for now
                     player.direction.y = -6 # Bounce
                     enemy.kill()
