@@ -219,5 +219,7 @@ if __name__ == "__main__":
     generate_sound("jump.wav", 0.2, 440, type='square')
     # Land: Low noise or low freq
     generate_sound("land.wav", 0.1, 150, type='noise')
+    # Hit: Sawtooth drop
+    generate_sound("hit.wav", 0.3, 100, type='sawtooth')
 
     pygame.quit()
