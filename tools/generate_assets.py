@@ -48,26 +48,43 @@ def generate_sprites():
         'B': BLUE,
     }
 
-    # 16x16 pattern
+    # 16x32 pattern (Tall Player)
+    # 32 rows
     idle_pattern = [
         "................",
         "................",
         ".....RRRRR......",
         "....RRRRRRR.....",
         "....RRRRRRR.....",
+        "....RRRRRRR.....",
         ".....SSSSS......",
+        ".....S.S.S......",
         ".....S.S.S......",
         ".....SSSSS......",
         ".....BBBBB......",
         "....BBBBBBB.....",
         "....BBBBBBB.....",
         "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        ".....BB.BB......",
+        ".....BB.BB......",
+        ".....BB.BB......",
         ".....BB.BB......",
         ".....BB.BB......",
         ".....BB.BB......",
         "................",
     ]
-    create_pixel_art_sprite(16, 16, idle_pattern, player_palette, "assets/sprites/player_idle.png")
+    create_pixel_art_sprite(16, 32, idle_pattern, player_palette, "assets/sprites/player_idle.png")
 
     # Run 1
     run1_pattern = [
@@ -76,40 +93,71 @@ def generate_sprites():
         ".....RRRRR......",
         "....RRRRRRR.....",
         "....RRRRRRR.....",
+        "....RRRRRRR.....",
         ".....SSSSS......",
+        ".....S.S.S......",
         ".....S.S.S......",
         ".....SSSSS......",
         ".....BBBBB......",
         "....BBBBBBB.....",
         "....BBBBBBB.....",
         "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BB...BB.....",
+        "....BB...BB.....",
         "....BB...BB.....",
         "....BB...BB.....",
         "...BB.....BB....",
+        "...BB.....BB....",
+        "..BB.......BB...",
         "................",
     ]
-    create_pixel_art_sprite(16, 16, run1_pattern, player_palette, "assets/sprites/player_run_0.png")
+    create_pixel_art_sprite(16, 32, run1_pattern, player_palette, "assets/sprites/player_run_0.png")
 
-    # Run 2 (Bobbing up a bit?)
+    # Run 2
     run2_pattern = [
         "................",
         ".....RRRRR......",
         "....RRRRRRR.....",
         "....RRRRRRR.....",
+        "....RRRRRRR.....",
         ".....SSSSS......",
+        ".....S.S.S......",
         ".....S.S.S......",
         ".....SSSSS......",
         ".....BBBBB......",
         "....BBBBBBB.....",
         "....BBBBBBB.....",
         "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        ".....BB.BB......",
+        ".....BB.BB......",
+        ".....BB.BB......",
         ".....BB.BB......",
         ".....BB.BB......",
         ".....BB.BB......",
         "................",
         "................",
     ]
-    create_pixel_art_sprite(16, 16, run2_pattern, player_palette, "assets/sprites/player_run_1.png")
+    create_pixel_art_sprite(16, 32, run2_pattern, player_palette, "assets/sprites/player_run_1.png")
 
     # Jump
     jump_pattern = [
@@ -117,20 +165,36 @@ def generate_sprites():
         ".....RRRRR......",
         "....RRRRRRR.....",
         "....RRRRRRR.....",
+        "....RRRRRRR.....",
         ".....SSSSS......",
+        ".....S.S.S......",
         ".....S.S.S......",
         ".....SSSSS......",
         ".....BBBBB......",
         "....BBBBBBB.....",
         "....BBBBBBB.....",
         "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BBBBBBB.....",
+        "....BB...BB.....",
+        "....BB...BB.....",
         "....BB...BB.....",
         "...BB.....BB....",
+        "...BB.....BB....",
         "..BB.......BB...",
+        ".BB.........BB..",
+        "................",
         "................",
         "................",
     ]
-    create_pixel_art_sprite(16, 16, jump_pattern, player_palette, "assets/sprites/player_jump.png")
+    create_pixel_art_sprite(16, 32, jump_pattern, player_palette, "assets/sprites/player_jump.png")
 
     # Ground Tile
     ground_palette = {
