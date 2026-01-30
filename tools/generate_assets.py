@@ -177,6 +177,60 @@ def generate_sprites():
 
     create_pixel_art_sprite(16, 16, full_ground_pattern, ground_palette, "assets/sprites/tile_ground.png")
 
+    # Flag / Goal
+    flag_palette = {
+        '.': TRANSPARENT,
+        'Y': (255, 255, 0), # Yellow Pole
+        'R': (255, 50, 50), # Red Flag
+        'W': (255, 255, 255) # White Checkers
+    }
+    flag_pattern = [
+        "................",
+        "................",
+        "..RRRR..........",
+        "..RWRW..........",
+        "..RRRR..........",
+        "..RWRW..........",
+        "..Y.............",
+        "..Y.............",
+        "..Y.............",
+        "..Y.............",
+        "..Y.............",
+        "..Y.............",
+        "..Y.............",
+        "..Y.............",
+        "..Y.............",
+        "..Y.............",
+    ]
+    create_pixel_art_sprite(16, 16, flag_pattern, flag_palette, "assets/sprites/tile_goal.png")
+
+    # Enemy (Red Blob)
+    enemy_palette = {
+        '.': TRANSPARENT,
+        'R': (200, 50, 50),
+        'W': (255, 255, 255),
+        'B': (0, 0, 0)
+    }
+    enemy_pattern = [
+        "................",
+        "................",
+        ".....RRRRRR.....",
+        "....RRRRRRRR....",
+        "...RRRRRRRRRR...",
+        "..RRRRRRRRRRRR..",
+        "..RRWBRRRRBWRR..",
+        "..RRWBRRRRBWRR..",
+        "..RRRRRRRRRRRR..",
+        "..RRRRRRRRRRRR..",
+        "...RRRRRRRRRR...",
+        "....RR....RR....",
+        "................",
+        "................",
+        "................",
+        "................",
+    ]
+    create_pixel_art_sprite(16, 16, enemy_pattern, enemy_palette, "assets/sprites/enemy.png")
+
 def generate_sound(filename, duration, freq, volume=0.5, type='square'):
     sample_rate = 44100
     n_samples = int(sample_rate * duration)
@@ -221,5 +275,7 @@ if __name__ == "__main__":
     generate_sound("land.wav", 0.1, 150, type='noise')
     # Hit: Sawtooth drop
     generate_sound("hit.wav", 0.3, 100, type='sawtooth')
+    # Win: Happy chime
+    generate_sound("win.wav", 0.5, 660, type='square')
 
     pygame.quit()

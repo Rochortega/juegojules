@@ -2,6 +2,7 @@ import pygame
 from src.settings import *
 from src.tile import Tile
 from src.player import Player
+from src.enemy import Enemy
 
 class Level:
     def __init__(self, level_data, surface):
@@ -13,10 +14,16 @@ class Level:
         # Audio
         self.hit_sound = pygame.mixer.Sound('assets/sounds/hit.wav')
         self.hit_sound.set_volume(0.5)
+        self.win_sound = pygame.mixer.Sound('assets/sounds/win.wav')
+        self.win_sound.set_volume(0.5)
 
     def setup_level(self, layout):
         self.tiles = pygame.sprite.Group()
+        self.goal = pygame.sprite.GroupSingle()
+        self.enemies = pygame.sprite.Group()
         self.player = pygame.sprite.GroupSingle()
+        # Invisible collision blocks for enemy patrol boundaries could be added,
+        # but for now we'll just reverse on wall collision if they hit walls.
 
         for row_index, row in enumerate(layout):
             for col_index, cell in enumerate(row):
@@ -26,10 +33,20 @@ class Level:
                 if cell == 'X':
                     tile = Tile((x, y), 16)
                     self.tiles.add(tile)
+                if cell == 'F':
+                    # Manually creating a tile with different image?
+                    # For simplicity, let's make Tile accept a type or create a Goal class.
+                    # Reusing Tile class but we need to swap image.
+                    tile = Tile((x, y), 16)
+                    tile.image = pygame.image.load('assets/sprites/tile_goal.png').convert_alpha()
+                    self.goal.add(tile)
                 if cell == 'P':
                     player_sprite = Player((x, y))
                     self.player.add(player_sprite)
                     self.start_pos = (x, y) # Save start pos for respawn
+                if cell == 'E':
+                    enemy = Enemy((x, y))
+                    self.enemies.add(enemy)
 
     def respawn(self):
         self.player.sprite.rect.topleft = self.start_pos
@@ -42,6 +59,36 @@ class Level:
         # Reloading is safer.
         self.setup_level(self.layout) # We need to store layout
         self.world_shift = 0
+
+    def check_goal(self):
+        if self.player.sprite.rect.colliderect(self.goal.sprite.rect):
+            self.win_sound.play()
+            print("YOU WIN!")
+            self.respawn() # Just restart level on win for now
+
+    def check_enemy_collisions(self):
+        player = self.player.sprite
+        # Check collision with enemies
+        for enemy in self.enemies.sprites():
+            if enemy.rect.colliderect(player.rect):
+                # If falling and above enemy -> Kill enemy
+                if player.direction.y > 0 and player.rect.bottom < enemy.rect.bottom:
+                    self.hit_sound.play() # Reuse hit sound for kill for now
+                    player.direction.y = -6 # Bounce
+                    enemy.kill()
+                else:
+                    # Player dies
+                    self.hit_sound.play()
+                    self.respawn()
+
+        # Enemy environment collision
+        for enemy in self.enemies.sprites():
+            # Check if hitting a wall (simple look ahead or collision check)
+            # Or just check if falling?
+            # Simple AI: Check walls
+            for tile in self.tiles.sprites():
+                if enemy.rect.colliderect(tile.rect):
+                    enemy.reverse()
 
     def horizontal_movement_collision(self):
         player = self.player.sprite
@@ -113,6 +160,14 @@ class Level:
         # or use a custom draw method. A simpler way for Pygame sprites:
         # Actually move the tiles by world_shift
 
+        self.check_goal()
+        self.check_enemy_collisions()
+
         self.tiles.update(self.world_shift)
+        self.goal.update(self.world_shift)
+        self.enemies.update(self.world_shift)
+
         self.player.draw(self.display_surface)
         self.tiles.draw(self.display_surface)
+        self.goal.draw(self.display_surface)
+        self.enemies.draw(self.display_surface)
