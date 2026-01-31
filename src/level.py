@@ -9,10 +9,16 @@ from src.bat import Bat
 from src.boss import Boss
 
 class Level:
-    def __init__(self, level_data, surface):
+    def __init__(self, level_data, surface, session):
         self.display_surface = surface
         self.world_shift = 0
         self.layout = level_data # Store layout for respawn
+        self.session = session
+
+        # State flags
+        self.finished = False
+        self.game_over = False
+
         self.setup_level(level_data)
 
         # Audio
@@ -31,8 +37,6 @@ class Level:
         self.heart_img = pygame.image.load('assets/sprites/ui_heart.png').convert_alpha()
         self.coin_img = pygame.image.load('assets/sprites/tile_coin.png').convert_alpha()
         self.font = pygame.font.SysFont('arial', 16, bold=True)
-
-        self.score = 0
 
     def setup_level(self, level_data):
         self.bg_tiles = pygame.sprite.Group()
@@ -100,8 +104,10 @@ class Level:
     def respawn(self):
         self.player.sprite.rect.topleft = self.start_pos
         self.player.sprite.direction = pygame.math.Vector2(0, 0)
-        self.player.sprite.health = 3 # Reset health
-        self.score = 0 # Reset score? Usually yes in retro games
+        # Don't reset health here, handled by session or damage logic
+        # But wait, local player sprite needs to sync with session health
+        self.player.sprite.health = self.session.lives
+
         # Reset level shift?
         # Since we shift tiles, resetting player to start_pos (which is relative to initial world) won't work
         # if the world has shifted.
@@ -114,8 +120,7 @@ class Level:
     def check_goal(self):
         if self.player.sprite.rect.colliderect(self.goal.sprite.rect):
             self.win_sound.play()
-            print("YOU WIN!")
-            self.respawn() # Just restart level on win for now
+            self.finished = True
 
     def check_coin_collisions(self):
         player = self.player.sprite
@@ -123,14 +128,15 @@ class Level:
         hits = pygame.sprite.spritecollide(player, self.coins, True)
         if hits:
             self.coin_sound.play()
-            self.score += len(hits)
+            self.session.score += len(hits)
 
         # Check Potions
         hits = pygame.sprite.spritecollide(player, self.potions, True)
         if hits:
             self.heal_sound.play()
-            if player.health < player.max_health:
-                player.health += 1
+            if self.session.lives < player.max_health:
+                self.session.lives += 1
+                player.health = self.session.lives
 
     def check_enemy_collisions(self):
         player = self.player.sprite
@@ -151,7 +157,8 @@ class Level:
                     if not player.invincible:
                         # Player hurts
                         self.hit_sound.play()
-                        player.health -= 1
+                        self.session.lives -= 1
+                        player.health = self.session.lives
                         player.invincible = True
                         player.hurt_time = pygame.time.get_ticks()
 
@@ -163,8 +170,8 @@ class Level:
                         player.direction.y = -4
                         player.rect.x += player.direction.x * 10
 
-                        if player.health <= 0:
-                            self.respawn()
+                        if self.session.lives <= 0:
+                            self.game_over = True
 
         # Enemy environment collision
         for enemy in self.enemies.sprites():
@@ -235,24 +242,29 @@ class Level:
 
     def ui(self):
         # Draw Hearts
-        for i in range(self.player.sprite.health):
+        for i in range(self.session.lives):
             x = 10 + (i * 34) # Spaced for 32px sprites
             y = 10
             self.display_surface.blit(self.heart_img, (x, y))
 
         # Draw Score
-        score_surf = self.font.render(f"x {self.score}", False, (255, 255, 255))
+        score_surf = self.font.render(f"x {self.session.score}", False, (255, 255, 255))
         score_rect = score_surf.get_rect(topleft=(160, 15))
         self.display_surface.blit(self.coin_img, (120, 10)) # Icon
         self.display_surface.blit(score_surf, score_rect)
 
     def run(self):
-        # Check death
+        # Check death (falling)
         if self.player.sprite.rect.top > INTERNAL_HEIGHT:
             self.hit_sound.play()
-            self.respawn()
+            self.session.lives -= 1
+            if self.session.lives <= 0:
+                self.game_over = True
+            else:
+                self.respawn()
 
         # Update
+        self.player.sprite.health = self.session.lives # Sync
         self.player.sprite.get_input()
         self.player.sprite.get_status()
         self.player.sprite.animate()
