@@ -6,7 +6,7 @@ import json
 from src.map_loader import load_level_map, save_level_map
 
 # Configuration
-TILE_SIZE = 16
+TILE_SIZE = 32
 SCREEN_WIDTH = 960 # Expanded for sidebar
 SCREEN_HEIGHT = 600
 MAP_HEIGHT = 15
@@ -107,7 +107,7 @@ class LevelEditor:
         # Welcome Screen Buttons
         self.welcome_buttons = []
         self.welcome_buttons.append(Button((SCREEN_WIDTH//2 - 100, 200, 200, 50), "Create New Level", self.new_level))
-        self.welcome_buttons.append(Button((SCREEN_WIDTH//2 - 100, 270, 200, 50), "Load Level 01", lambda: self.load_map("levels/level_01.json")))
+        self.welcome_buttons.append(Button((SCREEN_WIDTH//2 - 100, 270, 200, 50), "Load Migration Level", lambda: self.load_map("levels/level_migration.json")))
 
     def set_layer(self, layer):
         self.current_layer = layer

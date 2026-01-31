@@ -6,7 +6,7 @@ from src.map_loader import load_level_map
 from src.menu import Menu
 
 class Game:
-    def __init__(self, level_file='levels/level_01.json'):
+    def __init__(self, level_file='levels/level_migration.json'):
         pygame.init()
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption(TITLE)
@@ -88,8 +88,7 @@ class Game:
 
             self.level.run()
 
-            # Scale and blit to actual screen
-            scaled_surface = pygame.transform.scale(self.virtual_screen, (WINDOW_WIDTH, WINDOW_HEIGHT))
-            self.screen.blit(scaled_surface, (0, 0))
+            # Blit direct (1:1 scale)
+            self.screen.blit(self.virtual_screen, (0, 0))
 
         pygame.display.flip()

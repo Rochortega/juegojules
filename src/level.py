@@ -55,14 +55,14 @@ class Level:
         def process_layer(layout, group, is_main=False):
             for row_index, row in enumerate(layout):
                 for col_index, cell in enumerate(row):
-                    x = col_index * 16
-                    y = row_index * 16
+                    x = col_index * TILE_SIZE
+                    y = row_index * TILE_SIZE
 
                     if cell == 'X':
-                        tile = Tile((x, y), 16)
+                        tile = Tile((x, y), TILE_SIZE)
                         group.add(tile)
                     if cell == 'B':
-                        tile = Tile((x, y), 16)
+                        tile = Tile((x, y), TILE_SIZE)
                         tile.image = pygame.image.load('assets/sprites/tile_brick.png').convert_alpha()
                         tile.is_brick = True # Mark as breakable
                         group.add(tile)
@@ -70,7 +70,7 @@ class Level:
                     # Only parse entities in Main layer to avoid duplicates or logic issues
                     if is_main:
                         if cell == 'F':
-                            tile = Tile((x, y), 16)
+                            tile = Tile((x, y), TILE_SIZE)
                             tile.image = pygame.image.load('assets/sprites/tile_goal.png').convert_alpha()
                             self.goal.add(tile)
                         if cell == 'P':
@@ -220,13 +220,13 @@ class Level:
         direction_x = player.direction.x
 
         # Camera logic: Keep player centered
-        # Internal width is 320. Center is 160.
-        # We give a small buffer (deadzone) so it doesn't jitter on every pixel move.
+        # Internal width is 640. Center is 320.
+        # Deadzone: 280-360
 
-        if player_x < 140 and direction_x < 0:
+        if player_x < 280 and direction_x < 0:
             self.world_shift = PLAYER_SPEED
             player.speed = 0
-        elif player_x > 180 and direction_x > 0:
+        elif player_x > 360 and direction_x > 0:
             self.world_shift = -PLAYER_SPEED
             player.speed = 0
         else:
@@ -236,14 +236,14 @@ class Level:
     def ui(self):
         # Draw Hearts
         for i in range(self.player.sprite.health):
-            x = 10 + (i * 18)
+            x = 10 + (i * 34) # Spaced for 32px sprites
             y = 10
             self.display_surface.blit(self.heart_img, (x, y))
 
         # Draw Score
         score_surf = self.font.render(f"x {self.score}", False, (255, 255, 255))
-        score_rect = score_surf.get_rect(topleft=(80, 10))
-        self.display_surface.blit(self.coin_img, (60, 10)) # Icon
+        score_rect = score_surf.get_rect(topleft=(160, 15))
+        self.display_surface.blit(self.coin_img, (120, 10)) # Icon
         self.display_surface.blit(score_surf, score_rect)
 
     def run(self):
@@ -261,11 +261,6 @@ class Level:
 
         self.horizontal_movement_collision()
         self.vertical_movement_collision()
-
-        # Draw
-        # We need to shift tiles and player for drawing, but usually we shift the sprites' rects temporarily
-        # or use a custom draw method. A simpler way for Pygame sprites:
-        # Actually move the tiles by world_shift
 
         self.check_goal()
         self.check_enemy_collisions()
