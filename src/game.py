@@ -32,7 +32,7 @@ class Game:
         self.menu = Menu(self.screen)
         self.session = GameSession()
 
-        self.levels = ['levels/level_migration.json', 'levels/level_02.json']
+        self.levels = ['levels/level_01.json', 'levels/level_02.json']
 
         # Music
         try:

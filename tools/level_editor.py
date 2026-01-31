@@ -1,16 +1,17 @@
-import sys; sys.path.append(".")
-import pygame
 import sys
 import os
+import pygame
 import json
+
+# Add project root to path to allow imports from src
+sys.path.append(".")
 from src.map_loader import load_level_map, save_level_map
 
 # Configuration
 TILE_SIZE = 32
 SCREEN_WIDTH = 960 # Expanded for sidebar
 SCREEN_HEIGHT = 600
-MAP_HEIGHT = 15
-MAP_WIDTH = 200
+MAP_HEIGHT = 15 # 480 / 32 = 15 rows exactly
 SIDEBAR_WIDTH = 160
 
 # Colors
@@ -45,10 +46,10 @@ class Button:
             self.callback()
 
 class LevelEditor:
-    def __init__(self):
+    def __init__(self, level_number):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("SNES Level Editor")
+        pygame.display.set_caption(f"SNES Level Editor - LEVEL {level_number}")
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont('arial', 18)
 
@@ -63,16 +64,26 @@ class LevelEditor:
         # Editor State
         self.current_tile = 'X'
         self.current_layer = 'main' # bg, main, fg
-        self.layers = {'bg': {}, 'main': {}, 'fg': {}} # Use dicts for sparse grid
-        self.current_filename = "levels/level_new.json"
+        self.layers = {'bg': {}, 'main': {}, 'fg': {}}
 
         self.status_message = ""
         self.status_timer = 0
 
-        self.state = "WELCOME" # WELCOME, EDIT
-
         # UI Elements
         self.setup_ui()
+
+        # File Handling
+        self.level_number = level_number
+        self.filename = f"levels/level_{str(level_number).zfill(2)}.json"
+        self.init_file()
+
+    def init_file(self):
+        if os.path.exists(self.filename):
+            print(f"Loading existing level: {self.filename}")
+            self.load_map(self.filename)
+        else:
+            print(f"Creating new level: {self.filename}")
+            self.new_level()
 
     def load_assets(self):
         try:
@@ -86,7 +97,7 @@ class LevelEditor:
             self.assets['W'] = pygame.image.load('assets/sprites/enemy_bat.png').convert_alpha()
             self.assets['K'] = pygame.image.load('assets/sprites/enemy_boss.png').convert_alpha()
         except FileNotFoundError:
-            print("Warning: Assets not found.")
+            print("Warning: Assets not found. Run generate_assets.py first.")
             self.assets['X'] = self.create_solid(TILE_SIZE, (100, 50, 0))
 
     def create_solid(self, size, color):
@@ -102,12 +113,7 @@ class LevelEditor:
         self.buttons.append(Button((SCREEN_WIDTH - 150, 80, 140, 30), "Layer: FG", lambda: self.set_layer('fg'), color=(50, 80, 50)))
 
         # Save
-        self.buttons.append(Button((SCREEN_WIDTH - 150, 500, 140, 40), "SAVE", self.save_map))
-
-        # Welcome Screen Buttons
-        self.welcome_buttons = []
-        self.welcome_buttons.append(Button((SCREEN_WIDTH//2 - 100, 200, 200, 50), "Create New Level", self.new_level))
-        self.welcome_buttons.append(Button((SCREEN_WIDTH//2 - 100, 270, 200, 50), "Load Migration Level", lambda: self.load_map("levels/level_migration.json")))
+        self.buttons.append(Button((SCREEN_WIDTH - 150, 550, 140, 40), "SAVE", self.save_map))
 
     def set_layer(self, layer):
         self.current_layer = layer
@@ -119,11 +125,9 @@ class LevelEditor:
 
     def new_level(self):
         self.layers = {'bg': {}, 'main': {}, 'fg': {}}
-        self.current_filename = "levels/level_new.json"
-        self.state = "EDIT"
+        self.show_status("New Level Created")
 
     def load_map(self, filepath):
-        # Handle conversion from legacy list to dict format for editor
         data = load_level_map(filepath)
         self.layers = {'bg': {}, 'main': {}, 'fg': {}}
 
@@ -135,13 +139,10 @@ class LevelEditor:
                         if char != '.':
                             self.layers[layer_name][(x, y)] = char
 
-        self.current_filename = filepath
-        self.state = "EDIT"
         self.show_status(f"Loaded {filepath}")
 
     def save_map(self):
         # Convert sparse dicts to grid lists
-        # Find max width
         max_x = 0
         for layer in self.layers.values():
             if layer:
@@ -161,43 +162,18 @@ class LevelEditor:
                 grid.append(row)
             export_data[layer_name] = grid
 
-        save_level_map(self.current_filename, export_data)
-        self.show_status(f"Saved to {self.current_filename}")
+        save_level_map(self.filename, export_data)
+        self.show_status(f"Saved to {self.filename}")
 
     def run(self):
         while True:
             self.clock.tick(60)
-            if self.state == "WELCOME":
-                self.run_welcome()
-            elif self.state == "EDIT":
-                self.run_editor()
+            self.handle_input()
+            self.draw_editor()
 
             if pygame.event.get(pygame.QUIT):
                 break
         pygame.quit()
-
-    def run_welcome(self):
-        self.screen.fill(BG_COLOR)
-
-        title = self.font.render("SNES PLATFORMER EDITOR", True, TEXT_COLOR)
-        self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 100))
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    for btn in self.welcome_buttons:
-                        btn.check_click(event.pos)
-
-        for btn in self.welcome_buttons:
-            btn.draw(self.screen)
-        pygame.display.flip()
-
-    def run_editor(self):
-        self.handle_input()
-        self.draw_editor()
 
     def handle_input(self):
         keys = pygame.key.get_pressed()
@@ -229,7 +205,7 @@ class LevelEditor:
                     if pygame.mouse.get_pos()[0] > SCREEN_WIDTH - SIDEBAR_WIDTH:
                          for btn in self.buttons:
                             btn.check_click(event.pos)
-                         # Palette click check (simple hardcoded for now)
+                         # Palette click check
                          mx, my = event.pos
                          if 150 < my < 650: # Palette area
                              idx = (my - 150) // 50
@@ -264,7 +240,6 @@ class LevelEditor:
         end_col = start_col + ((SCREEN_WIDTH - SIDEBAR_WIDTH) // TILE_SIZE) + 1
 
         # Draw Layers
-        # Inactive layers dimmed
         layers_order = ['bg', 'main', 'fg']
         for layer_name in layers_order:
             tiles = self.layers[layer_name]
@@ -278,8 +253,6 @@ class LevelEditor:
                     if char in self.assets:
                         img = self.assets[char]
                         if not is_active:
-                            # Dimming hack: draw black rect with alpha on top?
-                            # Or just use img with less alpha if supported
                             img = img.copy()
                             img.set_alpha(100)
                         self.screen.blit(img, (screen_x, screen_y))
@@ -316,7 +289,7 @@ class LevelEditor:
         for btn in self.buttons:
             btn.draw(self.screen)
 
-        # Palette (Simple)
+        # Palette
         y = 150
         tiles = ['X', 'P', 'E', 'F', 'B', 'C', 'H', 'W', 'K', '.']
         labels = ['Ground', 'Player', 'Enemy', 'Goal', 'Brick', 'Coin', 'Potion', 'Bat', 'King', 'Eraser']
@@ -332,7 +305,7 @@ class LevelEditor:
                 scaled = pygame.transform.scale(self.assets[t], (32, 32))
                 self.screen.blit(scaled, rect)
             else:
-                 pygame.draw.rect(self.screen, (0,0,0), rect, 1) # Eraser box
+                 pygame.draw.rect(self.screen, (0,0,0), rect, 1)
 
             label = self.font.render(labels[i], True, TEXT_COLOR)
             self.screen.blit(label, (SCREEN_WIDTH - 90, y + 5))
@@ -348,4 +321,13 @@ class LevelEditor:
         pygame.display.flip()
 
 if __name__ == "__main__":
-    LevelEditor().run()
+    print("--- SNES LEVEL EDITOR ---")
+    try:
+        level_input = input("Enter Level Number to Edit/Create (e.g., 1): ")
+        level_num = int(level_input)
+        editor = LevelEditor(level_num)
+        editor.run()
+    except ValueError:
+        print("Invalid number.")
+    except KeyboardInterrupt:
+        print("\nExiting.")
