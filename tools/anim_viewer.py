@@ -56,10 +56,12 @@ def main():
             for y in range(rows):
                 for x in range(cols):
                     rect = pygame.Rect(x * fw, y * fh, fw, fh)
-                    frame = sheet.subsurface(rect)
-                    # Scale up x4
-                    frame = pygame.transform.scale(frame, (fw*4, fh*4))
-                    frames.append(frame)
+                    try:
+                        frame = sheet.subsurface(rect)
+                        # Store native size, scale at runtime
+                        frames.append(frame)
+                    except ValueError:
+                        pass # Out of bounds
 
             print(f"Sliced {len(frames)} frames.")
 
@@ -86,8 +88,6 @@ def main():
 
             for f in files:
                 img = pygame.image.load(os.path.join(path, f)).convert_alpha()
-                # Scale up for visibility (x4)
-                img = pygame.transform.scale(img, (img.get_width()*4, img.get_height()*4))
                 frames.append(img)
             print(f"Loaded {len(frames)} frames: {files}")
 
@@ -129,7 +129,12 @@ def main():
         screen.fill(BG_COLOR)
 
         # Center sprite
-        current_img = frames[int(frame_index)]
+        raw_img = frames[int(frame_index)]
+        # Scale x4 for visibility
+        scaled_w = raw_img.get_width() * 4
+        scaled_h = raw_img.get_height() * 4
+        current_img = pygame.transform.scale(raw_img, (scaled_w, scaled_h))
+
         rect = current_img.get_rect(center=(WIDTH//2, HEIGHT//2))
         screen.blit(current_img, rect)
 
