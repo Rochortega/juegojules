@@ -20,7 +20,10 @@ A pixel-art platformer game made with Pygame.
     ```bash
     pip install pygame
     ```
-2.  Run the game:
+2.  (Optional) Download "Press Start 2P" font:
+    *   Download from Google Fonts or similar.
+    *   Place the `PressStart2P.ttf` file in `assets/fonts/`.
+3.  Run the game:
     ```bash
     python main.py
     ```

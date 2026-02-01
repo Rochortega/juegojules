@@ -77,9 +77,9 @@ class Game:
 
                 if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
                     if self.state == 'MENU':
-                        self.session.reset()
-                        self.load_level()
-                        self.state = 'PLAY'
+                        # Input handling moved to Menu class update, but we still trap events here.
+                        # We need to bridge them.
+                        pass
                     elif self.state == 'LEVEL_COMPLETE':
                         self.session.current_level_index += 1
                         self.load_level()
@@ -93,9 +93,7 @@ class Game:
                 # Start button (usually 9 or 7 on generic pads, mapping varies)
                 # Let's say any button advances menu for simplicity
                 if self.state == 'MENU':
-                    self.session.reset()
-                    self.load_level()
-                    self.state = 'PLAY'
+                    pass # Handled by menu polling
                 elif self.state == 'LEVEL_COMPLETE':
                     self.session.current_level_index += 1
                     self.load_level()
@@ -109,6 +107,17 @@ class Game:
                     self.state = 'PLAY'
 
     def update(self):
+        if self.state == 'MENU':
+            action = self.menu.handle_input(self.joysticks)
+            if action == "START GAME":
+                self.session.reset()
+                self.load_level()
+                self.state = 'PLAY'
+            elif action == "EXIT":
+                self.running = False
+                pygame.quit()
+                sys.exit()
+
         if self.state == 'PLAY':
             # Check level flags
             if self.level.finished:

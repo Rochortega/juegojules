@@ -7,6 +7,7 @@ from src.coin import Coin
 from src.potion import Potion
 from src.bat import Bat
 from src.boss import Boss
+from src.ui import UI
 
 class Level:
     def __init__(self, level_data, surface, session):
@@ -18,6 +19,9 @@ class Level:
         # State flags
         self.finished = False
         self.game_over = False
+
+        # UI
+        self.ui_display = UI(self.display_surface)
 
         self.setup_level(level_data)
 
@@ -32,11 +36,6 @@ class Level:
         self.coin_sound.set_volume(0.4)
         self.heal_sound = pygame.mixer.Sound('assets/sounds/pickup.wav') # Reuse for now
         self.heal_sound.set_volume(0.4)
-
-        # UI
-        self.heart_img = pygame.image.load('assets/sprites/ui_heart.png').convert_alpha()
-        self.coin_img = pygame.image.load('assets/sprites/tile_coin.png').convert_alpha()
-        self.font = pygame.font.SysFont('arial', 16, bold=True)
 
     def setup_level(self, level_data):
         self.bg_tiles = pygame.sprite.Group()
@@ -240,19 +239,6 @@ class Level:
             self.world_shift = 0
             player.speed = PLAYER_SPEED
 
-    def ui(self):
-        # Draw Hearts
-        for i in range(self.session.lives):
-            x = 10 + (i * 34) # Spaced for 32px sprites
-            y = 10
-            self.display_surface.blit(self.heart_img, (x, y))
-
-        # Draw Score
-        score_surf = self.font.render(f"x {self.session.score}", False, (255, 255, 255))
-        score_rect = score_surf.get_rect(topleft=(160, 15))
-        self.display_surface.blit(self.coin_img, (120, 10)) # Icon
-        self.display_surface.blit(score_surf, score_rect)
-
     def run(self):
         # Check death (falling)
         if self.player.sprite.rect.top > INTERNAL_HEIGHT:
@@ -296,4 +282,4 @@ class Level:
         self.player.draw(self.display_surface)
         self.fg_tiles.draw(self.display_surface)
 
-        self.ui()
+        self.ui_display.draw(self.session.lives, self.session.score)
