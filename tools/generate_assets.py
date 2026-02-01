@@ -50,47 +50,26 @@ def generate_music_loop(filename, duration=8.0):
     # Just to ensure the file exists and is valid
     generate_sound(filename, duration, 440, 0.3, 'square')
 
-def generate_assets():
-    ensure_dir("assets/sprites")
+def generate_audio():
+    ensure_dir("assets/sounds")
+    # Regenerate Sounds
+    generate_sound("jump.wav", 0.2, 440, type='square')
+    generate_sound("land.wav", 0.1, 150, type='noise')
+    generate_sound("hit.wav", 0.3, 100, type='sawtooth')
+    generate_sound("win.wav", 0.5, 660, type='square')
+    generate_sound("break.wav", 0.1, 50, type='noise')
+    generate_sound("pickup.wav", 0.1, 1000, type='square')
+    generate_music_loop("music.wav")
+    print("Audio assets generated. Sprite generation disabled to protect user art.")
 
-    # Standard 32x32 Placeholders
-    # Player: Blue
-    create_solid_sprite(32, 32, (0, 0, 255), "assets/sprites/player_idle.png", (255, 255, 255))
-    create_solid_sprite(32, 32, (0, 0, 200), "assets/sprites/player_run_0.png", (255, 255, 255))
-    create_solid_sprite(32, 32, (0, 0, 255), "assets/sprites/player_run_1.png", (255, 255, 255))
-    create_solid_sprite(32, 32, (50, 50, 255), "assets/sprites/player_jump.png", (255, 255, 255))
-
-    # Ground: Brown
-    create_solid_sprite(32, 32, (100, 50, 0), "assets/sprites/tile_ground.png", (0, 255, 0))
-
-    # Brick: Orange
-    create_solid_sprite(32, 32, (200, 100, 0), "assets/sprites/tile_brick.png", (50, 20, 0))
-
-    # Goal: Yellow
-    create_solid_sprite(32, 32, (255, 255, 0), "assets/sprites/tile_goal.png", (255, 0, 0))
-
-    # Enemy: Red
-    create_solid_sprite(32, 32, (255, 0, 0), "assets/sprites/enemy.png", (0, 0, 0))
-
-    # Bat: Purple
-    create_solid_sprite(32, 32, (128, 0, 128), "assets/sprites/enemy_bat.png", (255, 255, 255))
-
-    # Boss: Big Red/Gold (Still 32x32 for tile logic, looks big enough)
-    create_solid_sprite(32, 32, (100, 0, 0), "assets/sprites/enemy_boss.png", (255, 215, 0))
-
-    # Items
-    create_solid_sprite(32, 32, (255, 215, 0), "assets/sprites/tile_coin.png", (255, 255, 200)) # Gold Coin
-    create_solid_sprite(32, 32, (255, 100, 100), "assets/sprites/item_potion.png", (255, 255, 255)) # Red Potion
-
-    # UI (Keep small or scale? Let's make 32x32 for simplicity or keep 16x16)
-    # UI is usually overlay, but for sprite consistency let's use 32x32
-    create_solid_sprite(32, 32, (255, 0, 0), "assets/sprites/ui_heart.png", (255, 255, 255))
+# Deprecated Sprite Generation
+# def generate_assets():
+#     ensure_dir("assets/sprites")
+#     ...
 
 if __name__ == "__main__":
     pygame.init()
-    generate_assets()
-
-    # Regenerate Sounds
+    generate_audio()
     generate_sound("jump.wav", 0.2, 440, type='square')
     generate_sound("land.wav", 0.1, 150, type='noise')
     generate_sound("hit.wav", 0.3, 100, type='sawtooth')

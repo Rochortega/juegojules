@@ -9,10 +9,10 @@ from src.map_loader import load_level_map, save_level_map
 
 # Configuration
 TILE_SIZE = 32
-SCREEN_WIDTH = 960 # Expanded for sidebar
+SCREEN_WIDTH = 1000 # Expanded for wider sidebar
 SCREEN_HEIGHT = 600
 MAP_HEIGHT = 15 # 480 / 32 = 15 rows exactly
-SIDEBAR_WIDTH = 160
+SIDEBAR_WIDTH = 200
 
 # Colors
 BG_COLOR = (40, 40, 40)
@@ -107,13 +107,17 @@ class LevelEditor:
 
     def setup_ui(self):
         self.buttons = []
+        # Sidebar UI Layout
+        x_start = SCREEN_WIDTH - SIDEBAR_WIDTH + 10
+        width = SIDEBAR_WIDTH - 20
+
         # Layer Toggles
-        self.buttons.append(Button((SCREEN_WIDTH - 150, 10, 140, 30), "Layer: BG", lambda: self.set_layer('bg'), color=(50, 50, 80)))
-        self.buttons.append(Button((SCREEN_WIDTH - 150, 45, 140, 30), "Layer: MAIN", lambda: self.set_layer('main'), color=(80, 50, 50)))
-        self.buttons.append(Button((SCREEN_WIDTH - 150, 80, 140, 30), "Layer: FG", lambda: self.set_layer('fg'), color=(50, 80, 50)))
+        self.buttons.append(Button((x_start, 10, width, 30), "Layer: BG", lambda: self.set_layer('bg'), color=(50, 50, 80)))
+        self.buttons.append(Button((x_start, 45, width, 30), "Layer: MAIN", lambda: self.set_layer('main'), color=(80, 50, 50)))
+        self.buttons.append(Button((x_start, 80, width, 30), "Layer: FG", lambda: self.set_layer('fg'), color=(50, 80, 50)))
 
         # Save
-        self.buttons.append(Button((SCREEN_WIDTH - 150, 550, 140, 40), "SAVE", self.save_map))
+        self.buttons.append(Button((x_start, SCREEN_HEIGHT - 50, width, 40), "SAVE MAP", self.save_map))
 
     def set_layer(self, layer):
         self.current_layer = layer
@@ -202,16 +206,27 @@ class LevelEditor:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     # Check UI clicks
-                    if pygame.mouse.get_pos()[0] > SCREEN_WIDTH - SIDEBAR_WIDTH:
+                    mx, my = pygame.mouse.get_pos()
+                    if mx > SCREEN_WIDTH - SIDEBAR_WIDTH:
                          for btn in self.buttons:
                             btn.check_click(event.pos)
-                         # Palette click check
-                         mx, my = event.pos
-                         if 150 < my < 650: # Palette area
-                             idx = (my - 150) // 50
-                             tiles = ['X', 'P', 'E', 'F', 'B', 'C', 'H', 'W', 'K', '.']
-                             if 0 <= idx < len(tiles):
-                                 self.current_tile = tiles[idx]
+
+                         # Palette Selection Logic (Grid 2 columns)
+                         # Defined in draw_editor, we need to match logic here
+                         palette_start_y = 130
+                         tiles = ['X', 'P', 'E', 'F', 'B', 'C', 'H', 'W', 'K', '.']
+
+                         # Check against grid rects
+                         col_width = (SIDEBAR_WIDTH - 20) // 2
+                         for i, t in enumerate(tiles):
+                             col = i % 2
+                             row = i // 2
+                             x = (SCREEN_WIDTH - SIDEBAR_WIDTH + 10) + col * col_width
+                             y = palette_start_y + row * 60
+
+                             rect = pygame.Rect(x, y, 48, 48) # Icon size + padding area
+                             if rect.collidepoint(mx, my):
+                                 self.current_tile = t
 
         # Painting
         if pygame.mouse.get_pressed()[0] or pygame.mouse.get_pressed()[2]:
@@ -289,17 +304,27 @@ class LevelEditor:
         for btn in self.buttons:
             btn.draw(self.screen)
 
-        # Palette
-        y = 150
+        # Palette (Grid Layout)
+        start_y = 130
         tiles = ['X', 'P', 'E', 'F', 'B', 'C', 'H', 'W', 'K', '.']
-        labels = ['Ground', 'Player', 'Enemy', 'Goal', 'Brick', 'Coin', 'Potion', 'Bat', 'King', 'Eraser']
+        # Short labels for grid
+        labels = ['Gnd', 'Ply', 'Eny', 'Goal', 'Brk', 'Coin', 'Pot', 'Bat', 'Boss', 'Del']
+
+        col_width = (SIDEBAR_WIDTH - 20) // 2
 
         for i, t in enumerate(tiles):
-            rect = pygame.Rect(SCREEN_WIDTH - 130, y, 32, 32)
+            col = i % 2
+            row = i // 2
+
+            x = (SCREEN_WIDTH - SIDEBAR_WIDTH + 10) + col * col_width
+            y = start_y + row * 60 # 60px height per row
+
+            # Icon Rect
+            rect = pygame.Rect(x + 10, y, 32, 32)
 
             # Highlight selected
             if self.current_tile == t:
-                pygame.draw.rect(self.screen, HIGHLIGHT_COLOR, (rect.x-2, rect.y-2, 36, 36), 2)
+                pygame.draw.rect(self.screen, HIGHLIGHT_COLOR, (rect.x-4, rect.y-4, 40, 40), 2)
 
             if t in self.assets:
                 scaled = pygame.transform.scale(self.assets[t], (32, 32))
@@ -307,10 +332,9 @@ class LevelEditor:
             else:
                  pygame.draw.rect(self.screen, (0,0,0), rect, 1)
 
+            # Label below icon
             label = self.font.render(labels[i], True, TEXT_COLOR)
-            self.screen.blit(label, (SCREEN_WIDTH - 90, y + 5))
-
-            y += 50
+            self.screen.blit(label, (x + 5, y + 35))
 
         # Status Message
         if self.status_timer > 0:
