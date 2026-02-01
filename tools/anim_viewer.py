@@ -16,25 +16,70 @@ def main():
 
     # CLI Input
     print("--- ANIMATION VIEWER ---")
-    prefix = input("Enter Sprite Prefix (e.g., 'player_run'): ")
-    path = "assets/sprites"
+    print("Mode 1: Enter Prefix to load sequence from 'assets/sprites/' (e.g. 'player_run')")
+    print("Mode 2: Enter Path to load a Spritesheet file (e.g. 'assets/sprites/sheet.png')")
+    user_input = input("Enter Prefix or File Path: ").strip()
 
-    # Load sprites
     frames = []
-    try:
-        files = sorted([f for f in os.listdir(path) if f.startswith(prefix) and f.endswith('.png')])
-        if not files:
-            print(f"No files found matching '{prefix}' in {path}")
+
+    # Mode 2: File (Spritesheet)
+    if os.path.isfile(user_input):
+        print(f"Detected File: {user_input}")
+        try:
+            sheet = pygame.image.load(user_input).convert_alpha()
+            print(f"Image loaded. Size: {sheet.get_width()}x{sheet.get_height()}")
+
+            w_input = input("Frame Width (default 32): ").strip()
+            h_input = input("Frame Height (default 32): ").strip()
+
+            fw = int(w_input) if w_input else 32
+            fh = int(h_input) if h_input else 32
+
+            # Slice
+            cols = sheet.get_width() // fw
+            rows = sheet.get_height() // fh
+
+            for y in range(rows):
+                for x in range(cols):
+                    rect = pygame.Rect(x * fw, y * fh, fw, fh)
+                    frame = sheet.subsurface(rect)
+                    # Scale up x4
+                    frame = pygame.transform.scale(frame, (fw*4, fh*4))
+                    frames.append(frame)
+
+            print(f"Sliced {len(frames)} frames.")
+
+        except Exception as e:
+            print(f"Error loading file: {e}")
             return
 
-        for f in files:
-            img = pygame.image.load(os.path.join(path, f)).convert_alpha()
-            # Scale up for visibility (x4)
-            img = pygame.transform.scale(img, (img.get_width()*4, img.get_height()*4))
-            frames.append(img)
-        print(f"Loaded {len(frames)} frames: {files}")
-    except FileNotFoundError:
-        print("Assets folder not found.")
+    # Mode 1: Prefix (Sequence)
+    else:
+        path = "assets/sprites"
+        print(f"Searching in {path} for prefix '{user_input}'...")
+        try:
+            if not os.path.exists(path):
+                print(f"Error: {path} directory not found.")
+                return
+
+            files = sorted([f for f in os.listdir(path) if f.startswith(user_input) and f.endswith('.png')])
+            if not files:
+                print(f"No files found matching '{user_input}'")
+                return
+
+            for f in files:
+                img = pygame.image.load(os.path.join(path, f)).convert_alpha()
+                # Scale up for visibility (x4)
+                img = pygame.transform.scale(img, (img.get_width()*4, img.get_height()*4))
+                frames.append(img)
+            print(f"Loaded {len(frames)} frames: {files}")
+
+        except Exception as e:
+            print(f"Error: {e}")
+            return
+
+    if not frames:
+        print("No frames loaded. Exiting.")
         return
 
     # State
