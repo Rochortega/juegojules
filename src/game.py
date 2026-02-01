@@ -65,6 +65,10 @@ class Game:
                 sys.exit()
 
             if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F1:
+                    if self.state == 'PLAY':
+                        self.level.debug.toggle()
+
                 if event.key == pygame.K_ESCAPE or event.key == pygame.K_p:
                     if self.state == 'PLAY':
                         self.state = 'PAUSE'

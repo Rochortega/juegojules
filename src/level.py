@@ -8,6 +8,7 @@ from src.potion import Potion
 from src.bat import Bat
 from src.boss import Boss
 from src.ui import UI
+from src.debug import DebugInterface
 
 class Level:
     def __init__(self, level_data, surface, session):
@@ -24,6 +25,9 @@ class Level:
         self.ui_display = UI(self.display_surface)
 
         self.setup_level(level_data)
+
+        # Debug
+        self.debug = DebugInterface(self.player.sprite)
 
         # Audio
         self.hit_sound = pygame.mixer.Sound('assets/sounds/hit.wav')
@@ -283,3 +287,6 @@ class Level:
         self.fg_tiles.draw(self.display_surface)
 
         self.ui_display.draw(self.session.lives, self.session.score)
+
+        self.debug.input()
+        self.debug.draw(self.display_surface)
