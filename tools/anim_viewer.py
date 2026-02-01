@@ -1,6 +1,7 @@
 import pygame
 import os
 import sys
+import argparse
 
 # Constants
 WIDTH, HEIGHT = 640, 480
@@ -8,17 +9,26 @@ BG_COLOR = (50, 50, 50)
 TEXT_COLOR = (255, 255, 255)
 
 def main():
+    parser = argparse.ArgumentParser(description="Animation Viewer for Spritesheets and Sequences")
+    parser.add_argument("input", nargs="?", help="Prefix (for sequence) or File Path (for spritesheet)")
+    parser.add_argument("--width", type=int, default=32, help="Frame Width (for spritesheet)")
+    parser.add_argument("--height", type=int, default=32, help="Frame Height (for spritesheet)")
+    args = parser.parse_args()
+
+    user_input = args.input
+
+    # Interactive mode if no args
+    if not user_input:
+        print("--- ANIMATION VIEWER ---")
+        print("Mode 1: Enter Prefix to load sequence from 'assets/sprites/' (e.g. 'player_run')")
+        print("Mode 2: Enter Path to load a Spritesheet file (e.g. 'assets/sprites/sheet.png')")
+        user_input = input("Enter Prefix or File Path: ").strip()
+
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Anim Viewer")
     clock = pygame.time.Clock()
     font = pygame.font.SysFont('arial', 20)
-
-    # CLI Input
-    print("--- ANIMATION VIEWER ---")
-    print("Mode 1: Enter Prefix to load sequence from 'assets/sprites/' (e.g. 'player_run')")
-    print("Mode 2: Enter Path to load a Spritesheet file (e.g. 'assets/sprites/sheet.png')")
-    user_input = input("Enter Prefix or File Path: ").strip()
 
     frames = []
 
@@ -29,11 +39,15 @@ def main():
             sheet = pygame.image.load(user_input).convert_alpha()
             print(f"Image loaded. Size: {sheet.get_width()}x{sheet.get_height()}")
 
-            w_input = input("Frame Width (default 32): ").strip()
-            h_input = input("Frame Height (default 32): ").strip()
+            # Use args or ask if interactive
+            fw = args.width
+            fh = args.height
 
-            fw = int(w_input) if w_input else 32
-            fh = int(h_input) if h_input else 32
+            if not args.input: # Interactive
+                w_in = input(f"Frame Width (default {fw}): ").strip()
+                h_in = input(f"Frame Height (default {fh}): ").strip()
+                if w_in: fw = int(w_in)
+                if h_in: fh = int(h_in)
 
             # Slice
             cols = sheet.get_width() // fw
@@ -51,6 +65,7 @@ def main():
 
         except Exception as e:
             print(f"Error loading file: {e}")
+            pygame.quit()
             return
 
     # Mode 1: Prefix (Sequence)
@@ -60,11 +75,13 @@ def main():
         try:
             if not os.path.exists(path):
                 print(f"Error: {path} directory not found.")
+                pygame.quit()
                 return
 
             files = sorted([f for f in os.listdir(path) if f.startswith(user_input) and f.endswith('.png')])
             if not files:
                 print(f"No files found matching '{user_input}'")
+                pygame.quit()
                 return
 
             for f in files:
@@ -76,10 +93,12 @@ def main():
 
         except Exception as e:
             print(f"Error: {e}")
+            pygame.quit()
             return
 
     if not frames:
         print("No frames loaded. Exiting.")
+        pygame.quit()
         return
 
     # State
@@ -98,6 +117,7 @@ def main():
                 if event.key == pygame.K_UP: anim_speed += 0.01
                 if event.key == pygame.K_DOWN: anim_speed = max(0.01, anim_speed - 0.01)
                 if event.key == pygame.K_SPACE: paused = not paused
+                if event.key == pygame.K_ESCAPE: running = False
 
         # Update
         if not paused:
@@ -118,7 +138,7 @@ def main():
         surf = font.render(status, True, TEXT_COLOR)
         screen.blit(surf, (10, 10))
 
-        inst = font.render("UP/DOWN: Speed | SPACE: Pause", True, (150, 150, 150))
+        inst = font.render("UP/DOWN: Speed | SPACE: Pause | ESC: Quit", True, (150, 150, 150))
         screen.blit(inst, (10, HEIGHT - 30))
 
         pygame.display.flip()
