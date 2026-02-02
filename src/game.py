@@ -6,6 +6,7 @@ from src.map_loader import load_level_map
 from src.menu_main import MainMenu
 from src.menu_settings import SettingsMenu
 from src.menu_pause import PauseMenu
+from src.transition import Transition
 from src.game_data import GameSession
 
 class Game:
@@ -43,6 +44,7 @@ class Game:
         self.menu_settings = SettingsMenu(self.screen)
         self.menu_pause = PauseMenu(self.screen)
 
+        self.transition = Transition()
         self.session = GameSession()
 
         self.levels = ['levels/level_01.json', 'levels/level_02.json']
@@ -61,8 +63,10 @@ class Game:
             level_map = load_level_map(level_file)
             joystick = self.joysticks[0] if self.joysticks else None
             self.level = Level(level_map, self.virtual_screen, self.session, joystick)
+            self.transition.start_fade_in()
         else:
             self.state = 'VICTORY'
+            self.transition.start_fade_in()
 
     def run(self):
         while self.running:
@@ -95,33 +99,33 @@ class Game:
                 if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
                     if self.state == 'LEVEL_COMPLETE':
                         self.session.current_level_index += 1
-                        self.load_level()
-                        if self.state != 'VICTORY':
-                            self.state = 'PLAY'
+                        self.transition.start_fade_out(callback=lambda: [self.load_level(), setattr(self, 'state', 'PLAY') if self.state != 'VICTORY' else None])
                     elif self.state == 'GAME_OVER' or self.state == 'VICTORY':
-                        self.state = 'MENU'
+                        self.transition.start_fade_out(callback=lambda: [setattr(self, 'state', 'MENU'), self.transition.start_fade_in()])
 
             # Joystick Buttons
             if event.type == pygame.JOYBUTTONDOWN:
                 if self.state == 'LEVEL_COMPLETE':
                     self.session.current_level_index += 1
-                    self.load_level()
-                    if self.state != 'VICTORY':
-                        self.state = 'PLAY'
+                    self.transition.start_fade_out(callback=lambda: [self.load_level(), setattr(self, 'state', 'PLAY') if self.state != 'VICTORY' else None])
                 elif self.state == 'GAME_OVER' or self.state == 'VICTORY':
-                    self.state = 'MENU'
+                    self.transition.start_fade_out(callback=lambda: [setattr(self, 'state', 'MENU'), self.transition.start_fade_in()])
                 elif self.state == 'PLAY' and (event.button == 9 or event.button == 7): # Start
                     self.state = 'PAUSE'
                 elif self.state == 'PAUSE' and (event.button == 9 or event.button == 7):
                     self.state = 'PLAY'
 
     def update(self):
+        # Update Transition
+        self.transition.update()
+        if self.transition.is_active():
+            return # Block updates while fading
+
         if self.state == 'MENU':
             action = self.menu_main.run(self.joysticks)
             if action == "START GAME":
-                self.session.reset()
-                self.load_level()
-                self.state = 'PLAY'
+                # Start fade out, then load level
+                self.transition.start_fade_out(callback=lambda: [self.session.reset(), self.load_level(), setattr(self, 'state', 'PLAY')])
             elif action == "SETTINGS":
                 self.state = 'SETTINGS'
             elif action == "CREDITS":
@@ -142,17 +146,16 @@ class Game:
             if action == "RESUME":
                 self.state = 'PLAY'
             elif action == "RESTART LEVEL":
-                self.level.respawn()
-                self.state = 'PLAY'
+                self.transition.start_fade_out(callback=lambda: [self.level.respawn(), setattr(self, 'state', 'PLAY'), self.transition.start_fade_in()])
             elif action == "EXIT TO TITLE":
-                self.state = 'MENU'
+                self.transition.start_fade_out(callback=lambda: [setattr(self, 'state', 'MENU'), self.transition.start_fade_in()])
 
         if self.state == 'PLAY':
             # Check level flags
             if self.level.finished:
-                self.state = 'LEVEL_COMPLETE'
+                self.transition.start_fade_out(callback=lambda: setattr(self, 'state', 'LEVEL_COMPLETE'))
             if self.level.game_over:
-                self.state = 'GAME_OVER'
+                self.transition.start_fade_out(callback=lambda: setattr(self, 'state', 'GAME_OVER'))
 
     def draw_text_centered(self, text, y_offset=0, color=(255, 255, 255)):
         surf = self.font.render(text, True, color)
@@ -178,29 +181,18 @@ class Game:
             # Level.run() updates physics. We shouldn't call run() in pause.
             if self.state == 'PLAY':
                 self.level.run()
-                self.level.draw_only = False # Ensure updating
+                self.level.draw_only = False
             elif self.state == 'PAUSE':
-                # We need a draw_only method or just draw elements without update
-                # For now, Level structure mixes update/draw.
-                # Hack: if we don't call level.run(), nothing draws.
-                # We need to refactor level to separate update/draw OR accept a 'paused' flag.
-                # Let's assume Level.run() handles everything.
-                # If paused, we can't call run().
-                # We need to render the last frame?
-                # For simplicity in this iteration:
-                # We will just Blit the existing virtual_screen (which has the last frame)
-                # BUT virtual_screen is cleared every frame.
-                # SOLUTION: Call level.draw() separately.
-                # I need to add level.draw() method or split run.
-                # Let's check Level class. It has run() doing everything.
-                # I will modify Level to have update() and draw() separated in next step if needed.
-                # For now, let's just NOT clear the screen if paused? No, loop clears it.
-                # I will implement `level.draw(surface)` method in Level class patch.
                 if hasattr(self.level, 'draw_all'):
                     self.level.draw_all()
 
-            # Blit game to screen
-            self.screen.blit(self.virtual_screen, (0, 0))
+            # Handle Screen Shake (get offset from level if playing)
+            shake_offset = (0, 0)
+            if hasattr(self.level, 'get_shake_offset'):
+                shake_offset = self.level.get_shake_offset()
+
+            # Blit game to screen with shake
+            self.screen.blit(self.virtual_screen, shake_offset)
 
             if self.state == 'PAUSE':
                 # Draw Pause Overlay on top of game
@@ -223,5 +215,8 @@ class Game:
             self.draw_text_centered("You completed the game!", 0)
             self.draw_text_centered(f"Final Score: {self.session.score}", 50)
             self.draw_text_centered("Press Jump to Return to Menu", 100, (150, 150, 150))
+
+        # Draw Transition Overlay
+        self.transition.draw(self.screen)
 
         pygame.display.flip()

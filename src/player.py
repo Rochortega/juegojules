@@ -52,6 +52,10 @@ class Player(pygame.sprite.Sprite):
         self.prev_space_pressed = False
         self.prev_joy_jump = False
 
+        # Coyote Time & Jump Buffer
+        self.last_ground_time = 0
+        self.jump_buffer_time = 0
+
     def import_assets(self):
         path = 'assets/sprites/'
         self.animations = {'idle': [], 'run': [], 'jump': [], 'fall': []}
@@ -110,11 +114,9 @@ class Player(pygame.sprite.Sprite):
         else:
             self.direction.x = 0
 
-        if keys[pygame.K_SPACE]:
-            if self.on_ground:
-                self.jump()
-            elif self.jump_count < self.max_jumps and not self.prev_space_pressed:
-                 self.jump()
+        # Jump Request (Buffer)
+        if keys[pygame.K_SPACE] and not self.prev_space_pressed:
+            self.jump_buffer_time = pygame.time.get_ticks()
         self.prev_space_pressed = keys[pygame.K_SPACE]
 
         # Joystick Input
@@ -135,11 +137,8 @@ class Player(pygame.sprite.Sprite):
 
                 # Button 0 or 1 usually jump (A or B)
                 joy_jump = self.joystick.get_button(0) or self.joystick.get_button(1)
-                if joy_jump:
-                    if self.on_ground and not self.prev_joy_jump:
-                        self.jump()
-                    elif self.jump_count < self.max_jumps and not self.prev_joy_jump:
-                        self.jump()
+                if joy_jump and not self.prev_joy_jump:
+                    self.jump_buffer_time = pygame.time.get_ticks()
                 self.prev_joy_jump = joy_jump
 
             except pygame.error:
@@ -195,6 +194,27 @@ class Player(pygame.sprite.Sprite):
         self.get_input()
         self.get_status()
         self.animate()
+
+        # Coyote Time & Jump Buffer Logic
+        current_time = pygame.time.get_ticks()
+
+        # Track when we were last on ground
+        if self.on_ground:
+            self.last_ground_time = current_time
+            self.jump_count = 0 # Reset jump count
+
+        # Check Buffer
+        if current_time - self.jump_buffer_time < JUMP_BUFFER:
+            # Check if we can jump
+            can_coyote = (current_time - self.last_ground_time < COYOTE_TIME) and self.jump_count == 0
+
+            if self.on_ground or can_coyote:
+                self.jump()
+                self.jump_buffer_time = 0 # Consume buffer
+            elif self.jump_count < self.max_jumps and self.jump_count > 0:
+                 # Double jump (no coyote, strict input)
+                 self.jump()
+                 self.jump_buffer_time = 0
 
         # Invincibility timer
         if self.invincible:
