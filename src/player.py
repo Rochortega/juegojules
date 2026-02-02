@@ -1,35 +1,37 @@
 import pygame
 from src.settings import *
 from src.assets_manager import assets
+from src.entity import PhysicsEntity
+from src.input_manager import InputManager
 import os
 
-class Player(pygame.sprite.Sprite):
-    def __init__(self, pos, joystick=None):
-        super().__init__()
+class Player(PhysicsEntity):
+    def __init__(self, pos):
+        # Initialize PhysicsEntity with hitbox size
+        super().__init__(pos, PLAYER_HITBOX_SIZE)
+
         self.import_assets()
-        self.joystick = joystick
         self.frame_index = 0
         self.animation_speed = 0.15
+
+        # Access Input Manager
+        self.input_manager = InputManager()
 
         if self.animations['idle']:
             self.image = self.animations['idle'][0]
         else:
-            # Fallback if no assets loaded
+            # Fallback
             self.image = pygame.Surface(PLAYER_SIZE)
             self.animations['idle'] = [self.image]
             self.animations['run'] = [self.image]
             self.animations['jump'] = [self.image]
             self.animations['fall'] = [self.image]
 
-        # Use HITBOX for collision
-        self.rect = pygame.Rect(pos[0], pos[1], PLAYER_HITBOX_SIZE[0], PLAYER_HITBOX_SIZE[1])
         # Offset to draw image relative to hitbox
         self.image_offset = pygame.math.Vector2(PLAYER_HITBOX_OFFSET[0], PLAYER_HITBOX_OFFSET[1])
 
-        # Movement
-        self.direction = pygame.math.Vector2(0, 0)
+        # Overwrite Physics params
         self.speed = PLAYER_SPEED
-        self.gravity = GRAVITY
         self.jump_speed = PLAYER_JUMP_FORCE
 
         # Jumping
@@ -102,51 +104,21 @@ class Player(pygame.sprite.Sprite):
         if self.land_sound: self.land_sound.set_volume(0.5)
 
     def get_input(self):
-        keys = pygame.key.get_pressed()
+        # Reset X
+        self.direction.x = 0
 
-        # Keyboard Input
-        if keys[pygame.K_RIGHT]:
+        if self.input_manager.is_pressed('right'):
             self.direction.x = 1
             self.facing_right = True
-        elif keys[pygame.K_LEFT]:
+        elif self.input_manager.is_pressed('left'):
             self.direction.x = -1
             self.facing_right = False
-        else:
-            self.direction.x = 0
 
         # Jump Request (Buffer)
-        if keys[pygame.K_SPACE] and not self.prev_space_pressed:
+        if self.input_manager.is_just_pressed('jump'):
             self.jump_buffer_time = pygame.time.get_ticks()
-        self.prev_space_pressed = keys[pygame.K_SPACE]
 
-        # Joystick Input
-        if self.joystick:
-            try:
-                # Horizontal axis usually 0
-                axis_x = self.joystick.get_axis(0)
-                # Deadzone
-                if abs(axis_x) < 0.2:
-                    axis_x = 0
-
-                if axis_x > 0.5:
-                    self.direction.x = 1
-                    self.facing_right = True
-                elif axis_x < -0.5:
-                    self.direction.x = -1
-                    self.facing_right = False
-
-                # Button 0 or 1 usually jump (A or B)
-                joy_jump = self.joystick.get_button(0) or self.joystick.get_button(1)
-                if joy_jump and not self.prev_joy_jump:
-                    self.jump_buffer_time = pygame.time.get_ticks()
-                self.prev_joy_jump = joy_jump
-
-            except pygame.error:
-                pass # Joystick error
-
-    def apply_gravity(self):
-        self.direction.y += self.gravity
-        self.rect.y += self.direction.y
+    # apply_gravity is inherited from PhysicsEntity
 
     def jump(self):
         self.direction.y = self.jump_speed

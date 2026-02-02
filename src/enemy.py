@@ -1,16 +1,23 @@
 import pygame
 from src.settings import *
 from src.assets_manager import assets
+from src.entity import PhysicsEntity
 
-class Enemy(pygame.sprite.Sprite):
+class Enemy(PhysicsEntity):
     def __init__(self, pos):
-        super().__init__()
+        # We need to load image first to get size for PhysicsEntity if we want precise match,
+        # but usually enemies have standard size. Let's load image first.
         self.image = assets.get_image('assets/sprites/enemy.png')
-        self.rect = self.image.get_rect(topleft=pos)
+        size = self.image.get_size()
+        super().__init__(pos, size)
+
+        # Reset image again just in case (though PhysicsEntity only sets rect)
+        self.image = assets.get_image('assets/sprites/enemy.png')
         self.speed = 1
+        self.direction.x = 1 # Start moving right
 
     def move(self):
-        self.rect.x += self.speed
+        self.move_x() # Uses PhysicsEntity logic
 
     def reverse(self):
         self.speed *= -1
