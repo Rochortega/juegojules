@@ -1,6 +1,7 @@
 import pygame
 import sys
 from src.settings import *
+from src.assets_manager import assets
 from src.level import Level
 from src.map_loader import load_level_map
 from src.menu_main import MainMenu
@@ -22,7 +23,7 @@ class Game:
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption(TITLE)
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont('arial', 30, bold=True)
+        self.font = assets.get_font(FONT_MAIN, 30)
 
         # Virtual Screen (The "Perfect Pixel" canvas)
         self.virtual_screen = pygame.Surface((INTERNAL_WIDTH, INTERNAL_HEIGHT))
