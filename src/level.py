@@ -284,6 +284,9 @@ class Level:
         self.coins.update(self.world_shift)
         self.potions.update(self.world_shift)
 
+        self.draw_all()
+
+    def draw_all(self):
         # Draw Order: BG -> Main -> Player/Enemies/Coins -> FG
         self.bg_tiles.draw(self.display_surface)
         self.tiles.draw(self.display_surface)

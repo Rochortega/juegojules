@@ -3,7 +3,9 @@ import sys
 from src.settings import *
 from src.level import Level
 from src.map_loader import load_level_map
-from src.menu import Menu
+from src.menu_main import MainMenu
+from src.menu_settings import SettingsMenu
+from src.menu_pause import PauseMenu
 from src.game_data import GameSession
 
 class Game:
@@ -29,7 +31,11 @@ class Game:
         self.running = True
         self.state = 'MENU' # MENU, PLAY, PAUSE, LEVEL_COMPLETE, GAME_OVER, VICTORY
 
-        self.menu = Menu(self.screen)
+        # Menus
+        self.menu_main = MainMenu(self.screen)
+        self.menu_settings = SettingsMenu(self.screen)
+        self.menu_pause = PauseMenu(self.screen)
+
         self.session = GameSession()
 
         self.levels = ['levels/level_01.json', 'levels/level_02.json']
@@ -76,16 +82,11 @@ class Game:
                     elif self.state == 'PAUSE':
                         self.state = 'PLAY'
                     elif self.state == 'MENU':
-                        self.running = False
-                        pygame.quit()
-                        sys.exit()
+                        pass # Handled by menu
 
+                # LEVEL COMPLETE / GAME OVER logic (simple press to continue)
                 if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
-                    if self.state == 'MENU':
-                        # Input handling moved to Menu class update, but we still trap events here.
-                        # We need to bridge them.
-                        pass
-                    elif self.state == 'LEVEL_COMPLETE':
+                    if self.state == 'LEVEL_COMPLETE':
                         self.session.current_level_index += 1
                         self.load_level()
                         if self.state != 'VICTORY':
@@ -95,11 +96,7 @@ class Game:
 
             # Joystick Buttons
             if event.type == pygame.JOYBUTTONDOWN:
-                # Start button (usually 9 or 7 on generic pads, mapping varies)
-                # Let's say any button advances menu for simplicity
-                if self.state == 'MENU':
-                    pass # Handled by menu polling
-                elif self.state == 'LEVEL_COMPLETE':
+                if self.state == 'LEVEL_COMPLETE':
                     self.session.current_level_index += 1
                     self.load_level()
                     if self.state != 'VICTORY':
@@ -113,15 +110,35 @@ class Game:
 
     def update(self):
         if self.state == 'MENU':
-            action = self.menu.handle_input(self.joysticks)
+            action = self.menu_main.run(self.joysticks)
             if action == "START GAME":
                 self.session.reset()
                 self.load_level()
                 self.state = 'PLAY'
+            elif action == "SETTINGS":
+                self.state = 'SETTINGS'
+            elif action == "CREDITS":
+                pass # TODO
             elif action == "EXIT":
                 self.running = False
                 pygame.quit()
                 sys.exit()
+
+        elif self.state == 'SETTINGS':
+            action = self.menu_settings.run(self.joysticks)
+            if action == "BACK":
+                self.state = 'MENU'
+
+        elif self.state == 'PAUSE':
+            # Handle Input only here. Drawing is done in self.draw()
+            action = self.menu_pause.handle_input(self.joysticks)
+            if action == "RESUME":
+                self.state = 'PLAY'
+            elif action == "RESTART LEVEL":
+                self.level.respawn()
+                self.state = 'PLAY'
+            elif action == "EXIT TO TITLE":
+                self.state = 'MENU'
 
         if self.state == 'PLAY':
             # Check level flags
@@ -136,27 +153,51 @@ class Game:
         self.screen.blit(surf, rect)
 
     def draw(self):
+        # Menu and Settings have their own draw loops inside run(), so we don't blit here for them
+        # Except we need to call display.flip() at the end.
+
         if self.state == 'MENU':
-            self.menu.run()
+            # menu_main.run calls draw
+            pass
+        elif self.state == 'SETTINGS':
+            # menu_settings.run calls draw
+            pass
 
         elif self.state == 'PLAY' or self.state == 'PAUSE':
             # Draw game
             self.virtual_screen.fill(BG_COLOR)
+
+            # Level always runs/draws in play, but in pause we might just want to draw static?
+            # Level.run() updates physics. We shouldn't call run() in pause.
             if self.state == 'PLAY':
                 self.level.run()
-            else:
-                pass
+                self.level.draw_only = False # Ensure updating
+            elif self.state == 'PAUSE':
+                # We need a draw_only method or just draw elements without update
+                # For now, Level structure mixes update/draw.
+                # Hack: if we don't call level.run(), nothing draws.
+                # We need to refactor level to separate update/draw OR accept a 'paused' flag.
+                # Let's assume Level.run() handles everything.
+                # If paused, we can't call run().
+                # We need to render the last frame?
+                # For simplicity in this iteration:
+                # We will just Blit the existing virtual_screen (which has the last frame)
+                # BUT virtual_screen is cleared every frame.
+                # SOLUTION: Call level.draw() separately.
+                # I need to add level.draw() method or split run.
+                # Let's check Level class. It has run() doing everything.
+                # I will modify Level to have update() and draw() separated in next step if needed.
+                # For now, let's just NOT clear the screen if paused? No, loop clears it.
+                # I will implement `level.draw(surface)` method in Level class patch.
+                if hasattr(self.level, 'draw_all'):
+                    self.level.draw_all()
 
             # Blit game to screen
             self.screen.blit(self.virtual_screen, (0, 0))
 
             if self.state == 'PAUSE':
-                # Overlay
-                overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
-                overlay.set_alpha(128)
-                overlay.fill((0, 0, 0))
-                self.screen.blit(overlay, (0, 0))
-                self.draw_text_centered("PAUSED")
+                # Draw Pause Overlay on top of game
+                self.menu_pause.draw()
 
         elif self.state == 'LEVEL_COMPLETE':
             self.screen.fill((0, 0, 0))
