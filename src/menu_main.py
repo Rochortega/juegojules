@@ -36,7 +36,7 @@ class MainMenu(MenuBase):
             y_offset = math.sin((current_time * 0.002) + x * 0.5) * 20
             self.screen.blit(self.bg_tile, (screen_x, WINDOW_HEIGHT // 2 + y_offset))
 
-    def run(self, joysticks):
-        action = self.handle_input(joysticks)
+    def run(self, input_manager):
+        action = self.handle_input(input_manager)
         self.draw()
         return action

@@ -68,16 +68,31 @@ class Game:
             print(f"Music error: {e}")
 
     def load_level(self):
-        if self.session.current_level_index < len(self.levels):
-            level_file = self.levels[self.session.current_level_index]
+        # Verify index is within bounds
+        if self.session.current_level_index >= len(self.levels):
+            self.state = 'VICTORY'
+            self.transition.start_fade_in()
+            return
+
+        level_file = self.levels[self.session.current_level_index]
+
+        # Robust loading
+        try:
             level_map = load_level_map(level_file)
-            # Input manager is global/singleton, so entities can access it directly
-            # but we can also pass it if we want strict injection.
-            # Entities will use InputManager() singleton.
+            # Check if map is valid (not empty)
+            if not level_map:
+                print(f"Error: Level {level_file} is empty or invalid.")
+                # Fallback to main menu or victory?
+                self.state = 'VICTORY' # Treat as end of content
+                self.transition.start_fade_in()
+                return
+
             self.level = Level(level_map, self.virtual_screen, self.session)
             self.transition.start_fade_in()
-        else:
-            self.state = 'VICTORY'
+        except Exception as e:
+            print(f"Critical Error loading {level_file}: {e}")
+            # Prevent black screen death - go back to menu
+            self.state = 'MENU'
             self.transition.start_fade_in()
 
     def run(self):
