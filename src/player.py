@@ -1,5 +1,6 @@
 import pygame
 from src.settings import *
+from src.support import import_spritesheet
 import os
 
 class Player(pygame.sprite.Sprite):
@@ -41,17 +42,36 @@ class Player(pygame.sprite.Sprite):
         path = 'assets/sprites/'
         self.animations = {'idle': [], 'run': [], 'jump': [], 'fall': []}
 
-        # Helper to load
-        def load(name):
-            full_path = os.path.join(path, name)
-            img = pygame.image.load(full_path).convert_alpha()
-            return img
+        # Try loading spritesheets (Native Support 64x64 -> 32x32)
+        # We look for 'player_run.png' etc.
 
-        self.animations['idle'].append(load('player_idle.png'))
-        self.animations['run'].append(load('player_run_0.png'))
-        self.animations['run'].append(load('player_run_1.png'))
-        self.animations['jump'].append(load('player_jump.png'))
-        self.animations['fall'].append(load('player_jump.png')) # Use jump for fall for now
+        # Run
+        if os.path.exists(path + 'player_run.png'):
+            self.animations['run'] = import_spritesheet(path + 'player_run.png', 64, 64, scale_to=(32, 32))
+        else:
+            # Fallback to sequence
+            if os.path.exists(path + 'player_run_0.png'):
+                self.animations['run'].append(pygame.image.load(path + 'player_run_0.png').convert_alpha())
+            if os.path.exists(path + 'player_run_1.png'):
+                self.animations['run'].append(pygame.image.load(path + 'player_run_1.png').convert_alpha())
+
+        # Idle
+        if os.path.exists(path + 'player_idle.png'):
+            # Check if it is a sheet (width > height)
+            img = pygame.image.load(path + 'player_idle.png')
+            if img.get_width() > img.get_height():
+                 self.animations['idle'] = import_spritesheet(path + 'player_idle.png', 64, 64, scale_to=(32, 32))
+            else:
+                 self.animations['idle'].append(img.convert_alpha())
+
+        # Jump
+        if os.path.exists(path + 'player_jump.png'):
+             # Assume single frame for jump usually, unless named sheet
+             self.animations['jump'].append(pygame.image.load(path + 'player_jump.png').convert_alpha())
+
+        # Fall (reuse jump if empty)
+        if not self.animations['fall']:
+            self.animations['fall'] = self.animations['jump']
 
         # Audio
         self.jump_sound = pygame.mixer.Sound('assets/sounds/jump.wav')
