@@ -11,6 +11,13 @@ from src.game_data import GameSession
 
 class Game:
     def __init__(self):
+        # Optimize Audio Latency (Low buffer for better timing)
+        # Must be called before pygame.init()
+        try:
+            pygame.mixer.pre_init(44100, -16, 2, 512)
+        except Exception:
+            print("Warning: Could not pre-init mixer.")
+
         pygame.init()
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption(TITLE)

@@ -15,8 +15,7 @@ from src.particles import ParticleManager
 class Level:
     def __init__(self, level_data, surface, session, joystick=None):
         self.display_surface = surface
-        self.world_shift = 0
-        self.current_x = 0
+        self.camera_x = 0
         self.layout = level_data # Store layout for respawn
         self.session = session
         self.joystick = joystick
@@ -121,19 +120,8 @@ class Level:
         self.player.sprite.direction = pygame.math.Vector2(0, 0)
         self.player.sprite.health = self.session.lives
 
-        # Reset World Shift (Move everything back to initial state)
-        shift_needed = -self.current_x
-
-        self.bg_tiles.update(shift_needed)
-        self.tiles.update(shift_needed)
-        self.fg_tiles.update(shift_needed)
-        self.goal.update(shift_needed)
-        self.enemies.update(shift_needed)
-        self.coins.update(shift_needed)
-        self.potions.update(shift_needed)
-
-        self.current_x = 0
-        self.world_shift = 0
+        # Reset Camera
+        self.camera_x = 0
 
     def check_goal(self):
         if self.player.sprite.rect.colliderect(self.goal.sprite.rect):
@@ -246,21 +234,16 @@ class Level:
     def scroll_x(self):
         player = self.player.sprite
         player_x = player.rect.centerx
-        direction_x = player.direction.x
 
-        # Camera logic: Keep player centered
-        # Internal width is 640. Center is 320.
-        # Deadzone: 280-360
+        # Camera logic: Keep player centered (Camera follows player)
+        # Deadzone: 280-360 relative to screen
 
-        if player_x < 280 and direction_x < 0:
-            self.world_shift = PLAYER_SPEED
-            player.speed = 0
-        elif player_x > 360 and direction_x > 0:
-            self.world_shift = -PLAYER_SPEED
-            player.speed = 0
-        else:
-            self.world_shift = 0
-            player.speed = PLAYER_SPEED
+        screen_x = player_x - self.camera_x
+
+        if screen_x < 280:
+            self.camera_x = player_x - 280
+        elif screen_x > 360:
+            self.camera_x = player_x - 360
 
     def run(self):
         # Check death (falling)
@@ -279,62 +262,68 @@ class Level:
         self.player.sprite.get_status()
         self.player.sprite.animate()
 
-        self.scroll_x()
-        self.current_x += self.world_shift
-
         self.horizontal_movement_collision()
         self.vertical_movement_collision()
+        self.scroll_x()
 
         self.check_goal()
         self.check_enemy_collisions()
         self.check_coin_collisions()
 
-        self.bg_tiles.update(self.world_shift)
-        self.tiles.update(self.world_shift)
-        self.fg_tiles.update(self.world_shift)
-        self.goal.update(self.world_shift)
-        self.enemies.update(self.world_shift)
-        self.coins.update(self.world_shift)
-        self.potions.update(self.world_shift)
+        self.update_active_sprites()
+        self.goal.update()
+        self.bg_tiles.update()
+        self.tiles.update()
+        self.fg_tiles.update()
 
         self.particle_manager.update(self.world_shift)
 
         self.draw_all()
 
-    def trigger_shake(self, duration=300, magnitude=5):
-        self.shake_timer = duration
-        self.shake_magnitude = magnitude
+    def update_active_sprites(self):
+        # Sleeping Protocol: Only update entities near camera
+        # Buffer: Screen width + 200px (100 each side)
 
-    def get_shake_offset(self):
-        offset_x = 0
-        offset_y = 0
-        if self.shake_timer > 0:
-            import random
-            self.shake_timer -= 1000 / FPS
-            offset_x = random.randint(-self.shake_magnitude, self.shake_magnitude)
-            offset_y = random.randint(-self.shake_magnitude, self.shake_magnitude)
-        return offset_x, offset_y
+        active_area = pygame.Rect(self.camera_x - 100, 0, INTERNAL_WIDTH + 200, INTERNAL_HEIGHT)
+
+        # Helper to update group
+        def update_group(group):
+            for sprite in group.sprites():
+                if sprite.rect.colliderect(active_area):
+                    sprite.update()
+
+        update_group(self.enemies)
+        update_group(self.coins)
+        update_group(self.potions)
+
+    def draw_group_culled(self, group):
+        for sprite in group.sprites():
+            screen_x = sprite.rect.x - self.camera_x
+            # Simple Culling: Check if sprite is within screen width + buffer
+            if -sprite.rect.width < screen_x < INTERNAL_WIDTH:
+                self.display_surface.blit(sprite.image, (screen_x, sprite.rect.y))
 
     def draw_all(self):
         # Draw Order: BG -> Main -> Player/Enemies/Coins -> FG
-        self.bg_tiles.draw(self.display_surface)
-        self.tiles.draw(self.display_surface)
-        self.coins.draw(self.display_surface)
-        self.potions.draw(self.display_surface)
-        self.goal.draw(self.display_surface)
-        self.enemies.draw(self.display_surface)
+        self.draw_group_culled(self.bg_tiles)
+        self.draw_group_culled(self.tiles)
+        self.draw_group_culled(self.coins)
+        self.draw_group_culled(self.potions)
+        self.draw_group_culled(self.goal)
+        self.draw_group_culled(self.enemies)
 
         self.particle_manager.draw(self.display_surface)
 
         # Custom Player Draw to handle Hitbox Offset
         for player in self.player.sprites():
-            # Draw image at hitbox pos - offset
-            offset_pos = (player.rect.x - player.image_offset.x, player.rect.y - player.image_offset.y)
-            self.display_surface.blit(player.image, offset_pos)
+            # Draw image at hitbox pos - offset - camera
+            screen_x = player.rect.x - player.image_offset.x - self.camera_x
+            screen_y = player.rect.y - player.image_offset.y
+            self.display_surface.blit(player.image, (screen_x, screen_y))
 
-        self.fg_tiles.draw(self.display_surface)
+        self.draw_group_culled(self.fg_tiles)
 
         self.ui_display.draw(self.session.lives, self.session.score)
 
         self.debug.input()
-        self.debug.draw(self.display_surface)
+        self.debug.draw(self.display_surface, self.camera_x)
