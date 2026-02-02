@@ -59,7 +59,10 @@ class InputManager:
         if keys[pygame.K_DOWN] or keys[pygame.K_s]: self.actions[DOWN] = True
         if keys[pygame.K_LEFT] or keys[pygame.K_a]: self.actions[LEFT] = True
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]: self.actions[RIGHT] = True
-        if keys[pygame.K_SPACE] or keys[pygame.K_z]: self.actions[JUMP] = True
+        # Explicit mapping for JUMP
+        if keys[pygame.K_SPACE] or keys[pygame.K_z]:
+             self.actions[JUMP] = True
+
         if keys[pygame.K_x] or keys[pygame.K_k]: self.actions[ATTACK] = True
         if keys[pygame.K_ESCAPE] or keys[pygame.K_p]: self.actions[PAUSE] = True
         if keys[pygame.K_RETURN]: self.actions[START] = True
