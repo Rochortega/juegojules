@@ -13,12 +13,11 @@ from src.debug import DebugInterface
 from src.particles import ParticleManager
 
 class Level:
-    def __init__(self, level_data, surface, session, joystick=None):
+    def __init__(self, level_data, surface, session):
         self.display_surface = surface
         self.camera_x = 0
         self.layout = level_data # Store layout for respawn
         self.session = session
-        self.joystick = joystick
 
         # State flags
         self.finished = False
@@ -91,7 +90,7 @@ class Level:
                             tile.image = assets.get_image('assets/sprites/tile_goal.png')
                             self.goal.add(tile)
                         if cell == 'P':
-                            player_sprite = Player((x, y), self.joystick)
+                            player_sprite = Player((x, y))
                             self.player.add(player_sprite)
                             self.start_pos = (x, y)
                         if cell == 'E':
@@ -192,15 +191,26 @@ class Level:
 
     def horizontal_movement_collision(self):
         player = self.player.sprite
-        player.rect.x += player.direction.x * player.speed
+        # Player now uses move_x from PhysicsEntity but we need to control the loop here for collision
+        # or call player.move_x() then check collisions.
+        # Let's use the explicit logic for now but update position using entity logic style if needed.
+        # Ideally: player.update_x() -> check collision -> correct.
+
+        # We manually move x here to keep collision logic inside Level
+        # (as Level holds tiles).
+        # But we should update pos_x in entity.
+
+        player.move_x()
 
         # Collision only with MAIN tiles
         for sprite in self.tiles.sprites():
             if sprite.rect.colliderect(player.rect):
                 if player.direction.x < 0:
                     player.rect.left = sprite.rect.right
+                    player.pos_x = player.rect.x # Sync float pos
                 elif player.direction.x > 0:
                     player.rect.right = sprite.rect.left
+                    player.pos_x = player.rect.x # Sync float pos
 
     def vertical_movement_collision(self):
         player = self.player.sprite
@@ -210,6 +220,7 @@ class Level:
             if sprite.rect.colliderect(player.rect):
                 if player.direction.y > 0:
                     player.rect.bottom = sprite.rect.top
+                    player.pos_y = player.rect.y # Sync float pos
                     player.direction.y = 0
                     if not player.on_ground:
                         player.land_sound.play()
@@ -217,6 +228,7 @@ class Level:
                     player.on_ground = True
                 elif player.direction.y < 0:
                     player.rect.top = sprite.rect.bottom
+                    player.pos_y = player.rect.y # Sync float pos
                     player.direction.y = 0
 
                     # Break brick

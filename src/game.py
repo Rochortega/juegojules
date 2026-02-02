@@ -2,6 +2,7 @@ import pygame
 import sys
 from src.settings import *
 from src.assets_manager import assets
+from src.input_manager import InputManager
 from src.level import Level
 from src.map_loader import load_level_map
 from src.menu_main import MainMenu
@@ -11,7 +12,7 @@ from src.transition import Transition
 from src.game_data import GameSession
 
 class Game:
-    def __init__(self):
+    def __init__(self, start_level=None):
         # Optimize Audio Latency (Low buffer for better timing)
         # Must be called before pygame.init()
         try:
@@ -28,14 +29,8 @@ class Game:
         # Virtual Screen (The "Perfect Pixel" canvas)
         self.virtual_screen = pygame.Surface((INTERNAL_WIDTH, INTERNAL_HEIGHT))
 
-        # Joysticks
-        pygame.joystick.init()
-        self.joysticks = []
-        if pygame.joystick.get_count() > 0:
-            for i in range(pygame.joystick.get_count()):
-                j = pygame.joystick.Joystick(i)
-                j.init()
-                self.joysticks.append(j)
+        # Input
+        self.input_manager = InputManager()
 
         self.running = True
         self.state = 'MENU' # MENU, PLAY, PAUSE, LEVEL_COMPLETE, GAME_OVER, VICTORY
@@ -50,6 +45,20 @@ class Game:
 
         self.levels = ['levels/level_01.json', 'levels/level_02.json']
 
+        # Override if specific level requested (e.g. from editor)
+        if start_level:
+             # Find index if exists, or append and set index
+             if start_level in self.levels:
+                 self.session.current_level_index = self.levels.index(start_level)
+             else:
+                 # Temporary add for testing
+                 self.levels.append(start_level)
+                 self.session.current_level_index = len(self.levels) - 1
+
+             # Start immediately
+             self.load_level()
+             self.state = 'PLAY'
+
         # Music
         try:
             pygame.mixer.music.load('assets/sounds/music.wav')
@@ -62,8 +71,10 @@ class Game:
         if self.session.current_level_index < len(self.levels):
             level_file = self.levels[self.session.current_level_index]
             level_map = load_level_map(level_file)
-            joystick = self.joysticks[0] if self.joysticks else None
-            self.level = Level(level_map, self.virtual_screen, self.session, joystick)
+            # Input manager is global/singleton, so entities can access it directly
+            # but we can also pass it if we want strict injection.
+            # Entities will use InputManager() singleton.
+            self.level = Level(level_map, self.virtual_screen, self.session)
             self.transition.start_fade_in()
         else:
             self.state = 'VICTORY'
@@ -77,44 +88,33 @@ class Game:
             self.draw()
 
     def events(self):
+        # Update Input
+        self.input_manager.update()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
                 pygame.quit()
                 sys.exit()
-
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_F1:
-                    if self.state == 'PLAY':
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_F1:
+                 if self.state == 'PLAY':
                         self.level.debug.toggle()
 
-                if event.key == pygame.K_ESCAPE or event.key == pygame.K_p:
-                    if self.state == 'PLAY':
-                        self.state = 'PAUSE'
-                    elif self.state == 'PAUSE':
-                        self.state = 'PLAY'
-                    elif self.state == 'MENU':
-                        pass # Handled by menu
+        # Handle Global States using InputManager
+        if self.input_manager.is_just_pressed('pause'):
+            if self.state == 'PLAY':
+                self.state = 'PAUSE'
+            elif self.state == 'PAUSE':
+                self.state = 'PLAY'
 
-                # LEVEL COMPLETE / GAME OVER logic (simple press to continue)
-                if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
-                    if self.state == 'LEVEL_COMPLETE':
+        # Level Complete / Game Over handling
+        if self.state in ['LEVEL_COMPLETE', 'GAME_OVER', 'VICTORY']:
+            if self.input_manager.is_just_pressed('select') or self.input_manager.is_just_pressed('jump') or self.input_manager.is_just_pressed('start'):
+                 if self.state == 'LEVEL_COMPLETE':
                         self.session.current_level_index += 1
                         self.transition.start_fade_out(callback=lambda: [self.load_level(), setattr(self, 'state', 'PLAY') if self.state != 'VICTORY' else None])
-                    elif self.state == 'GAME_OVER' or self.state == 'VICTORY':
+                 elif self.state == 'GAME_OVER' or self.state == 'VICTORY':
                         self.transition.start_fade_out(callback=lambda: [setattr(self, 'state', 'MENU'), self.transition.start_fade_in()])
-
-            # Joystick Buttons
-            if event.type == pygame.JOYBUTTONDOWN:
-                if self.state == 'LEVEL_COMPLETE':
-                    self.session.current_level_index += 1
-                    self.transition.start_fade_out(callback=lambda: [self.load_level(), setattr(self, 'state', 'PLAY') if self.state != 'VICTORY' else None])
-                elif self.state == 'GAME_OVER' or self.state == 'VICTORY':
-                    self.transition.start_fade_out(callback=lambda: [setattr(self, 'state', 'MENU'), self.transition.start_fade_in()])
-                elif self.state == 'PLAY' and (event.button == 9 or event.button == 7): # Start
-                    self.state = 'PAUSE'
-                elif self.state == 'PAUSE' and (event.button == 9 or event.button == 7):
-                    self.state = 'PLAY'
 
     def update(self):
         # Update Transition
@@ -123,7 +123,7 @@ class Game:
             return # Block updates while fading
 
         if self.state == 'MENU':
-            action = self.menu_main.run(self.joysticks)
+            action = self.menu_main.run(self.input_manager)
             if action == "START GAME":
                 # Start fade out, then load level
                 self.transition.start_fade_out(callback=lambda: [self.session.reset(), self.load_level(), setattr(self, 'state', 'PLAY')])
@@ -137,13 +137,13 @@ class Game:
                 sys.exit()
 
         elif self.state == 'SETTINGS':
-            action = self.menu_settings.run(self.joysticks)
+            action = self.menu_settings.run(self.input_manager)
             if action == "BACK":
                 self.state = 'MENU'
 
         elif self.state == 'PAUSE':
             # Handle Input only here. Drawing is done in self.draw()
-            action = self.menu_pause.handle_input(self.joysticks)
+            action = self.menu_pause.handle_input(self.input_manager)
             if action == "RESUME":
                 self.state = 'PLAY'
             elif action == "RESTART LEVEL":

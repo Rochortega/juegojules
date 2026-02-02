@@ -2,6 +2,7 @@ import sys
 import os
 import pygame
 import json
+import subprocess
 
 # Add project root to path to allow imports from src
 sys.path.append(".")
@@ -123,8 +124,8 @@ class LevelEditor:
         # Save
         self.buttons.append(Button((x_start, SCREEN_HEIGHT - 50, width, 40), "SAVE MAP", self.save_map))
 
-        # Test Play (Only works if main.py is accessible via simple subproccess or similar, keep simple for now)
-        # self.buttons.append(Button((x_start, SCREEN_HEIGHT - 100, width, 40), "PLAY LEVEL", self.play_level))
+        # Test Play
+        self.buttons.append(Button((x_start, SCREEN_HEIGHT - 100, width, 40), "TEST LEVEL", self.play_level, color=(50, 100, 50)))
 
     def toggle_auto_tile(self):
         self.auto_tile = not self.auto_tile
@@ -186,6 +187,17 @@ class LevelEditor:
 
         save_level_map(self.filename, export_data)
         self.show_status(f"Saved to {self.filename}")
+
+    def play_level(self):
+        self.save_map()
+        self.show_status("Launching Game...")
+        # Launch main.py in a separate process
+        try:
+             # Use current python executable
+             subprocess.Popen([sys.executable, "main.py", "--level", self.filename])
+        except Exception as e:
+             self.show_status(f"Error launching game: {e}")
+             print(e)
 
     def run(self):
         while True:
