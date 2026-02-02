@@ -169,9 +169,9 @@ class Game:
         if self.state == 'PLAY':
             # Check level flags
             if self.level.finished:
-                self.transition.start_fade_out(callback=lambda: setattr(self, 'state', 'LEVEL_COMPLETE'))
+                self.transition.start_fade_out(callback=lambda: [setattr(self, 'state', 'LEVEL_COMPLETE'), self.transition.start_fade_in()])
             if self.level.game_over:
-                self.transition.start_fade_out(callback=lambda: setattr(self, 'state', 'GAME_OVER'))
+                self.transition.start_fade_out(callback=lambda: [setattr(self, 'state', 'GAME_OVER'), self.transition.start_fade_in()])
 
     def draw_text_centered(self, text, y_offset=0, color=(255, 255, 255)):
         surf = self.font.render(text, True, color)
