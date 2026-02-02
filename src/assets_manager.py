@@ -12,7 +12,46 @@ class AssetManager:
             cls._instance.images = {}
             cls._instance.sounds = {}
             cls._instance.fonts = {}
+            cls._instance.terrain_tiles = []
+            cls._instance.objects = {}
         return cls._instance
+
+    def load_tileset(self, path, tile_size=32):
+        if not os.path.exists(path):
+            print(f"AssetManager: Tileset not found {path}")
+            return
+
+        print(f"AssetManager: Loading tileset {path}")
+        master_image = pygame.image.load(path).convert_alpha()
+        sheet_w, sheet_h = master_image.get_size()
+        cols = sheet_w // tile_size
+        rows = sheet_h // tile_size
+
+        self.terrain_tiles = []
+        for y in range(rows):
+            for x in range(cols):
+                rect = pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size)
+                tile_surf = master_image.subsurface(rect)
+                self.terrain_tiles.append(tile_surf)
+
+        print(f"AssetManager: Sliced {len(self.terrain_tiles)} tiles.")
+
+    def load_objects(self, path):
+        if not os.path.exists(path):
+            print(f"AssetManager: Objects path not found {path}")
+            return
+
+        print(f"AssetManager: Loading objects from {path}")
+        for root, dirs, files in os.walk(path):
+            for file in files:
+                if file.lower().endswith(('.png', '.jpg')):
+                    full_path = os.path.join(root, file)
+                    # Key is filename without extension (or relative path?)
+                    # Let's use filename without extension for simplicity, or folder_filename
+                    name = os.path.splitext(file)[0]
+                    # Also support folder keys if multiple items in folder?
+                    # Keep it simple: flat dict by filename for now
+                    self.objects[name] = pygame.image.load(full_path).convert_alpha()
 
     def get_image(self, path, scale_to=None):
         key = (path, scale_to)

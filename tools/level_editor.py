@@ -7,6 +7,7 @@ import subprocess
 # Add project root to path to allow imports from src
 sys.path.append(".")
 from src.map_loader import load_level_map, save_level_map
+from src.assets_manager import assets
 
 # Configuration
 TILE_SIZE = 32
@@ -87,8 +88,12 @@ class LevelEditor:
             self.new_level()
 
     def load_assets(self):
+        # Initialize AssetManager logic if needed, but it handles on demand.
+        # But we need to call load_tileset explicitly.
+        assets.load_tileset('assets/tileset.png')
+
+        # Load Entities (keep direct mapping for entities for now)
         try:
-            self.assets['X'] = pygame.image.load('assets/sprites/tile_ground.png').convert_alpha()
             self.assets['P'] = pygame.image.load('assets/sprites/player_idle.png').convert_alpha()
             self.assets['E'] = pygame.image.load('assets/sprites/enemy.png').convert_alpha()
             self.assets['F'] = pygame.image.load('assets/sprites/tile_goal.png').convert_alpha()
@@ -97,6 +102,13 @@ class LevelEditor:
             self.assets['H'] = pygame.image.load('assets/sprites/item_potion.png').convert_alpha()
             self.assets['W'] = pygame.image.load('assets/sprites/enemy_bat.png').convert_alpha()
             self.assets['K'] = pygame.image.load('assets/sprites/enemy_boss.png').convert_alpha()
+
+            # Map 'X' to the first tile in tileset if available, else load fallback
+            if assets.terrain_tiles:
+                self.assets['X'] = assets.terrain_tiles[0]
+            else:
+                self.assets['X'] = pygame.image.load('assets/sprites/tile_ground.png').convert_alpha()
+
         except FileNotFoundError:
             print("Warning: Assets not found. Run generate_assets.py first.")
             self.assets['X'] = self.create_solid(TILE_SIZE, (100, 50, 0))
@@ -336,8 +348,9 @@ class LevelEditor:
 
         # Palette (Grid Layout)
         start_y = 160 # Moved down due to Auto-Tile button
+
+        # Standard Entities
         tiles = ['X', 'P', 'E', 'F', 'B', 'C', 'H', 'W', 'K', '.']
-        # Short labels for grid
         labels = ['Gnd', 'Ply', 'Eny', 'Goal', 'Brk', 'Coin', 'Pot', 'Bat', 'Boss', 'Del']
 
         col_width = (SIDEBAR_WIDTH - 20) // 2
@@ -365,6 +378,10 @@ class LevelEditor:
             # Label below icon
             label = self.font.render(labels[i], True, TEXT_COLOR)
             self.screen.blit(label, (x + 5, y + 35))
+
+        # Draw Objects / Tileset Preview (Optional extension)
+        # If we have tileset tiles, maybe show them?
+        # Currently the Editor only paints 'X'. We kept it simple as per plan.
 
         # Status Message
         if self.status_timer > 0:
