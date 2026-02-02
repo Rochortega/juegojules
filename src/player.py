@@ -21,7 +21,10 @@ class Player(pygame.sprite.Sprite):
             self.animations['jump'] = [self.image]
             self.animations['fall'] = [self.image]
 
-        self.rect = self.image.get_rect(topleft=pos)
+        # Use HITBOX for collision
+        self.rect = pygame.Rect(pos[0], pos[1], PLAYER_HITBOX_SIZE[0], PLAYER_HITBOX_SIZE[1])
+        # Offset to draw image relative to hitbox
+        self.image_offset = pygame.math.Vector2(PLAYER_HITBOX_OFFSET[0], PLAYER_HITBOX_OFFSET[1])
 
         # Movement
         self.direction = pygame.math.Vector2(0, 0)

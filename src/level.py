@@ -294,7 +294,13 @@ class Level:
         self.potions.draw(self.display_surface)
         self.goal.draw(self.display_surface)
         self.enemies.draw(self.display_surface)
-        self.player.draw(self.display_surface)
+
+        # Custom Player Draw to handle Hitbox Offset
+        for player in self.player.sprites():
+            # Draw image at hitbox pos - offset
+            offset_pos = (player.rect.x - player.image_offset.x, player.rect.y - player.image_offset.y)
+            self.display_surface.blit(player.image, offset_pos)
+
         self.fg_tiles.draw(self.display_surface)
 
         self.ui_display.draw(self.session.lives, self.session.score)

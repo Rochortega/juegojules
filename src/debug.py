@@ -50,6 +50,18 @@ class DebugInterface:
     def draw(self, surface):
         if not self.active: return
 
+        # Draw Hitbox Visuals
+        # Target Rect (Hitbox) - RED
+        pygame.draw.rect(surface, (255, 0, 0), self.target.rect, 1)
+
+        # Target Image Rect (Visual) - WHITE
+        if hasattr(self.target, 'image_offset'):
+            vis_x = self.target.rect.x - self.target.image_offset.x
+            vis_y = self.target.rect.y - self.target.image_offset.y
+            vis_w = self.target.image.get_width()
+            vis_h = self.target.image.get_height()
+            pygame.draw.rect(surface, (255, 255, 255), (vis_x, vis_y, vis_w, vis_h), 1)
+
         # Overlay
         overlay = pygame.Surface((200, 150))
         overlay.set_alpha(200)

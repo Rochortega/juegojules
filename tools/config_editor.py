@@ -55,6 +55,7 @@ class ConfigEditor:
                     step = 1 if isinstance(val, int) else 0.1
                     if "SPEED" in key or "GRAVITY" in key: step = 0.1
                     if "WIDTH" in key or "HEIGHT" in key: step = 4 # Pixel step
+                    if "OFFSET" in key: step = 1
 
                     if event.key == pygame.K_LEFT:
                         self.config[key] = round(val - step, 2)
@@ -74,6 +75,28 @@ class ConfigEditor:
                 text = f"{key}: {self.config[key]}"
                 surf = self.font.render(text, True, color)
                 self.screen.blit(surf, (50, 60 + i * 40))
+
+            # Preview Hitbox
+            if "HITBOX" in self.keys[self.selection_idx] or "WIDTH" in self.keys[self.selection_idx]:
+                 try:
+                     px, py = 400, 200
+                     p_w = self.config.get("PLAYER_WIDTH", 48)
+                     p_h = self.config.get("PLAYER_HEIGHT", 48)
+
+                     hb_w = self.config.get("PLAYER_HITBOX_WIDTH", 20)
+                     hb_h = self.config.get("PLAYER_HITBOX_HEIGHT", 40)
+                     off_x = self.config.get("PLAYER_HITBOX_OFFSET_X", 0)
+                     off_y = self.config.get("PLAYER_HITBOX_OFFSET_Y", 0)
+
+                     # Blue = Image
+                     pygame.draw.rect(self.screen, (0, 0, 255), (px, py, p_w, p_h), 2)
+                     # Red = Hitbox (Offset relative to image)
+                     pygame.draw.rect(self.screen, (255, 0, 0), (px + off_x, py + off_y, hb_w, hb_h), 2)
+
+                     caption = self.font.render("Preview (Blue=Img, Red=Hitbox)", True, (150, 150, 150))
+                     self.screen.blit(caption, (350, 150))
+                 except:
+                     pass
 
             pygame.display.flip()
 
