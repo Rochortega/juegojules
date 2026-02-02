@@ -28,6 +28,16 @@ class Level:
         # UI
         self.ui_display = UI(self.display_surface)
 
+        # Backgrounds
+        self.bg_images = []
+        for i in range(5):
+            path = f'assets/bg/bg_layer_{i}.png'
+            img = assets.get_image(path)
+            if img:
+                # Scale to screen height if needed, usually BG is screen size
+                # If width is small, we repeat it.
+                self.bg_images.append({'img': img, 'speed': 0.1 + (i * 0.15)}) # 0.1 to 0.7 roughly
+
         self.setup_level(level_data)
 
         # Debug
@@ -392,6 +402,24 @@ class Level:
                 self.display_surface.blit(sprite.image, (screen_x, sprite.rect.y))
 
     def draw_all(self):
+        # Draw Parallax BG
+        for layer in self.bg_images:
+            img = layer['img']
+            speed = layer['speed']
+
+            # Parallax calculation
+            # world_shift is usually delta. We need absolute world position for parallax?
+            # Or just accumulate shift?
+            # If we rely on self.camera_x (which tracks player position), we can use that.
+            # bg_x = -(self.camera_x * speed) % img_width
+
+            if img.get_width() > 0:
+                bg_x = -(self.camera_x * speed) % img.get_width()
+                # Draw repeated
+                self.display_surface.blit(img, (bg_x - img.get_width(), 0))
+                self.display_surface.blit(img, (bg_x, 0))
+                self.display_surface.blit(img, (bg_x + img.get_width(), 0))
+
         # Draw Order: BG -> Main -> Player/Enemies/Coins -> FG
         self.draw_group_culled(self.bg_tiles)
         self.draw_group_culled(self.tiles)
