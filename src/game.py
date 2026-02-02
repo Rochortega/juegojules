@@ -171,29 +171,18 @@ class Game:
             # Level.run() updates physics. We shouldn't call run() in pause.
             if self.state == 'PLAY':
                 self.level.run()
-                self.level.draw_only = False # Ensure updating
+                self.level.draw_only = False
             elif self.state == 'PAUSE':
-                # We need a draw_only method or just draw elements without update
-                # For now, Level structure mixes update/draw.
-                # Hack: if we don't call level.run(), nothing draws.
-                # We need to refactor level to separate update/draw OR accept a 'paused' flag.
-                # Let's assume Level.run() handles everything.
-                # If paused, we can't call run().
-                # We need to render the last frame?
-                # For simplicity in this iteration:
-                # We will just Blit the existing virtual_screen (which has the last frame)
-                # BUT virtual_screen is cleared every frame.
-                # SOLUTION: Call level.draw() separately.
-                # I need to add level.draw() method or split run.
-                # Let's check Level class. It has run() doing everything.
-                # I will modify Level to have update() and draw() separated in next step if needed.
-                # For now, let's just NOT clear the screen if paused? No, loop clears it.
-                # I will implement `level.draw(surface)` method in Level class patch.
                 if hasattr(self.level, 'draw_all'):
                     self.level.draw_all()
 
-            # Blit game to screen
-            self.screen.blit(self.virtual_screen, (0, 0))
+            # Handle Screen Shake (get offset from level if playing)
+            shake_offset = (0, 0)
+            if hasattr(self.level, 'get_shake_offset'):
+                shake_offset = self.level.get_shake_offset()
+
+            # Blit game to screen with shake
+            self.screen.blit(self.virtual_screen, shake_offset)
 
             if self.state == 'PAUSE':
                 # Draw Pause Overlay on top of game
