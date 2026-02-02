@@ -10,6 +10,7 @@ from src.bat import Bat
 from src.boss import Boss
 from src.ui import UI
 from src.debug import DebugInterface
+from src.particles import ParticleManager
 
 class Level:
     def __init__(self, level_data, surface, session, joystick=None):
@@ -31,6 +32,13 @@ class Level:
 
         # Debug
         self.debug = DebugInterface(self.player.sprite)
+
+        # Particles
+        self.particle_manager = ParticleManager()
+
+        # Screen Shake
+        self.shake_timer = 0
+        self.shake_magnitude = 0
 
         # Audio
         self.hit_sound = assets.get_sound('assets/sounds/hit.wav')
@@ -162,6 +170,7 @@ class Level:
                     if hasattr(enemy, 'hit'): # Boss logic
                         enemy.hit()
                     else:
+                        self.particle_manager.create_explosion(enemy.rect.center)
                         enemy.kill()
                 else:
                     if not player.invincible:
@@ -180,6 +189,7 @@ class Level:
                         player.direction.y = -4
                         player.rect.x += player.direction.x * 10
 
+                        self.trigger_shake() # Shake on damage
                         if self.session.lives <= 0:
                             self.game_over = True
 
@@ -215,6 +225,7 @@ class Level:
                     player.direction.y = 0
                     if not player.on_ground:
                         player.land_sound.play()
+                        self.particle_manager.create_dust(player.rect.midbottom)
                     player.on_ground = True
                 elif player.direction.y < 0:
                     player.rect.top = sprite.rect.bottom
@@ -222,6 +233,7 @@ class Level:
 
                     # Break brick
                     if hasattr(sprite, 'is_brick') and sprite.is_brick:
+                        self.particle_manager.create_brick_break(sprite.rect.center)
                         sprite.kill()
                         self.break_sound.play()
 
@@ -254,6 +266,7 @@ class Level:
         # Check death (falling)
         if self.player.sprite.rect.top > INTERNAL_HEIGHT:
             self.hit_sound.play()
+            self.trigger_shake() # Shake on death
             self.session.lives -= 1
             if self.session.lives <= 0:
                 self.game_over = True
@@ -284,7 +297,23 @@ class Level:
         self.coins.update(self.world_shift)
         self.potions.update(self.world_shift)
 
+        self.particle_manager.update(self.world_shift)
+
         self.draw_all()
+
+    def trigger_shake(self, duration=300, magnitude=5):
+        self.shake_timer = duration
+        self.shake_magnitude = magnitude
+
+    def get_shake_offset(self):
+        offset_x = 0
+        offset_y = 0
+        if self.shake_timer > 0:
+            import random
+            self.shake_timer -= 1000 / FPS
+            offset_x = random.randint(-self.shake_magnitude, self.shake_magnitude)
+            offset_y = random.randint(-self.shake_magnitude, self.shake_magnitude)
+        return offset_x, offset_y
 
     def draw_all(self):
         # Draw Order: BG -> Main -> Player/Enemies/Coins -> FG
@@ -294,6 +323,8 @@ class Level:
         self.potions.draw(self.display_surface)
         self.goal.draw(self.display_surface)
         self.enemies.draw(self.display_surface)
+
+        self.particle_manager.draw(self.display_surface)
 
         # Custom Player Draw to handle Hitbox Offset
         for player in self.player.sprites():
