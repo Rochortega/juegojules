@@ -1,10 +1,11 @@
 import pygame
 from src.settings import *
+from src.assets_manager import assets
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, pos):
         super().__init__()
-        self.image = pygame.image.load('assets/sprites/enemy.png').convert_alpha()
+        self.image = assets.get_image('assets/sprites/enemy.png')
         self.rect = self.image.get_rect(topleft=pos)
         self.speed = 1
 

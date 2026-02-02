@@ -16,17 +16,26 @@ A pixel-art platformer game made with Pygame.
 ## Installation & Running
 
 ### PC
-1.  Install Python 3 and Pygame:
+1.  Install Python 3.
+2.  Install dependencies:
     ```bash
-    pip install pygame
+    pip install -r requirements.txt
     ```
-2.  (Optional) Download "Press Start 2P" font:
+3.  (Optional) Download "Press Start 2P" font:
     *   Download from Google Fonts or similar.
     *   Place the `PressStart2P.ttf` file in `assets/fonts/`.
-3.  Run the game:
+4.  Run the game:
     ```bash
     python main.py
     ```
+
+## Development & Testing
+
+To run the automated tests, ensure you have installed the requirements (which include `pytest`), then run:
+
+```bash
+pytest tests/
+```
 
 ### Anbernic RG40XX V
 1.  Copy this entire folder to your device (e.g., in `roms/ports` or `ports`).

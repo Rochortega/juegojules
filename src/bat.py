@@ -1,11 +1,12 @@
 import pygame
 import math
 from src.enemy import Enemy
+from src.assets_manager import assets
 
 class Bat(Enemy):
     def __init__(self, pos):
         super().__init__(pos)
-        self.image = pygame.image.load('assets/sprites/enemy_bat.png').convert_alpha()
+        self.image = assets.get_image('assets/sprites/enemy_bat.png')
         self.rect = self.image.get_rect(topleft=pos)
         self.start_y = pos[1]
         self.speed = 2

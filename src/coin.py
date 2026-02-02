@@ -1,10 +1,11 @@
 import pygame
 import math
+from src.assets_manager import assets
 
 class Coin(pygame.sprite.Sprite):
     def __init__(self, pos):
         super().__init__()
-        self.image = pygame.image.load('assets/sprites/tile_coin.png').convert_alpha()
+        self.image = assets.get_image('assets/sprites/tile_coin.png')
         self.rect = self.image.get_rect(topleft=pos)
 
         # Floating animation

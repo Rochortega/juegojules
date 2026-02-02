@@ -116,8 +116,26 @@ class LevelEditor:
         self.buttons.append(Button((x_start, 45, width, 30), "Layer: MAIN", lambda: self.set_layer('main'), color=(80, 50, 50)))
         self.buttons.append(Button((x_start, 80, width, 30), "Layer: FG", lambda: self.set_layer('fg'), color=(50, 80, 50)))
 
+        # Auto-Tile Toggle
+        self.auto_tile = False
+        self.buttons.append(Button((x_start, 120, width, 30), "Auto-Tile: OFF", self.toggle_auto_tile, color=(60, 60, 60)))
+
         # Save
         self.buttons.append(Button((x_start, SCREEN_HEIGHT - 50, width, 40), "SAVE MAP", self.save_map))
+
+        # Test Play (Only works if main.py is accessible via simple subproccess or similar, keep simple for now)
+        # self.buttons.append(Button((x_start, SCREEN_HEIGHT - 100, width, 40), "PLAY LEVEL", self.play_level))
+
+    def toggle_auto_tile(self):
+        self.auto_tile = not self.auto_tile
+        # Update button text
+        # Finding button by callback is hacky but works here
+        for btn in self.buttons:
+             if "Auto-Tile" in btn.text:
+                 btn.text = f"Auto-Tile: {'ON' if self.auto_tile else 'OFF'}"
+
+        if self.auto_tile:
+            self.show_status("Auto-Tile Enabled (WIP)")
 
     def set_layer(self, layer):
         self.current_layer = layer
@@ -213,7 +231,7 @@ class LevelEditor:
 
                          # Palette Selection Logic (Grid 2 columns)
                          # Defined in draw_editor, we need to match logic here
-                         palette_start_y = 130
+                         palette_start_y = 160
                          tiles = ['X', 'P', 'E', 'F', 'B', 'C', 'H', 'W', 'K', '.']
 
                          # Check against grid rects
@@ -305,7 +323,7 @@ class LevelEditor:
             btn.draw(self.screen)
 
         # Palette (Grid Layout)
-        start_y = 130
+        start_y = 160 # Moved down due to Auto-Tile button
         tiles = ['X', 'P', 'E', 'F', 'B', 'C', 'H', 'W', 'K', '.']
         # Short labels for grid
         labels = ['Gnd', 'Ply', 'Eny', 'Goal', 'Brk', 'Coin', 'Pot', 'Bat', 'Boss', 'Del']
