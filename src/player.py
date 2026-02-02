@@ -1,15 +1,26 @@
 import pygame
 from src.settings import *
-from src.support import import_spritesheet
+from src.assets_manager import assets
 import os
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, pos):
+    def __init__(self, pos, joystick=None):
         super().__init__()
         self.import_assets()
+        self.joystick = joystick
         self.frame_index = 0
         self.animation_speed = 0.15
-        self.image = self.animations['idle'][0]
+
+        if self.animations['idle']:
+            self.image = self.animations['idle'][0]
+        else:
+            # Fallback if no assets loaded
+            self.image = pygame.Surface(PLAYER_SIZE)
+            self.animations['idle'] = [self.image]
+            self.animations['run'] = [self.image]
+            self.animations['jump'] = [self.image]
+            self.animations['fall'] = [self.image]
+
         self.rect = self.image.get_rect(topleft=pos)
 
         # Movement
@@ -41,50 +52,47 @@ class Player(pygame.sprite.Sprite):
     def import_assets(self):
         path = 'assets/sprites/'
         self.animations = {'idle': [], 'run': [], 'jump': [], 'fall': []}
-
-        # Try loading spritesheets (Native Support 64x64 -> PLAYER_SIZE)
-        # We look for 'player_run.png' etc.
-        target_size = PLAYER_SIZE # From settings/config
+        target_size = PLAYER_SIZE
 
         # Run
         if os.path.exists(path + 'player_run.png'):
-            self.animations['run'] = import_spritesheet(path + 'player_run.png', 64, 64, scale_to=target_size)
+            self.animations['run'] = assets.get_spritesheet(path + 'player_run.png', 64, 64, scale_to=target_size)
         else:
-            # Fallback to sequence (Also scale them?)
-            # Assuming old assets were 32x32 native or generated.
-            # If we want 48x48, we should probably scale these too.
-            def load_scale(name):
-                img = pygame.image.load(path + name).convert_alpha()
-                return pygame.transform.scale(img, target_size)
-
-            if os.path.exists(path + 'player_run_0.png'): self.animations['run'].append(load_scale('player_run_0.png'))
-            if os.path.exists(path + 'player_run_1.png'): self.animations['run'].append(load_scale('player_run_1.png'))
+            if os.path.exists(path + 'player_run_0.png'): self.animations['run'].append(assets.get_image(path + 'player_run_0.png', scale_to=target_size))
+            if os.path.exists(path + 'player_run_1.png'): self.animations['run'].append(assets.get_image(path + 'player_run_1.png', scale_to=target_size))
 
         # Idle
         if os.path.exists(path + 'player_idle.png'):
-            img = pygame.image.load(path + 'player_idle.png')
-            if img.get_width() > img.get_height():
-                 self.animations['idle'] = import_spritesheet(path + 'player_idle.png', 64, 64, scale_to=target_size)
-            else:
-                 self.animations['idle'].append(pygame.transform.scale(img.convert_alpha(), target_size))
+            # Check if sheet or single image?
+            # AssetManager handles simple load, but we need to know if it's a sheet.
+            # We can check dimensions of the cached image if we load it as image first?
+            # Or just assume consistent assets.
+            # For robustness, let's try to load as image first.
+            img = assets.get_image(path + 'player_idle.png')
+            if img:
+                if img.get_width() > img.get_height():
+                    self.animations['idle'] = assets.get_spritesheet(path + 'player_idle.png', 64, 64, scale_to=target_size)
+                else:
+                    self.animations['idle'].append(assets.get_image(path + 'player_idle.png', scale_to=target_size))
 
         # Jump
         if os.path.exists(path + 'player_jump.png'):
-             img = pygame.image.load(path + 'player_jump.png')
-             if img.get_width() > img.get_height(): # Sheet
-                 self.animations['jump'] = import_spritesheet(path + 'player_jump.png', 64, 64, scale_to=target_size)
-             else:
-                 self.animations['jump'].append(pygame.transform.scale(img.convert_alpha(), target_size))
+             img = assets.get_image(path + 'player_jump.png')
+             if img:
+                 if img.get_width() > img.get_height():
+                     self.animations['jump'] = assets.get_spritesheet(path + 'player_jump.png', 64, 64, scale_to=target_size)
+                 else:
+                     self.animations['jump'].append(assets.get_image(path + 'player_jump.png', scale_to=target_size))
 
         # Fall (reuse jump if empty)
         if not self.animations['fall']:
             self.animations['fall'] = self.animations['jump']
 
         # Audio
-        self.jump_sound = pygame.mixer.Sound('assets/sounds/jump.wav')
-        self.jump_sound.set_volume(0.5)
-        self.land_sound = pygame.mixer.Sound('assets/sounds/land.wav')
-        self.land_sound.set_volume(0.5)
+        self.jump_sound = assets.get_sound('assets/sounds/jump.wav')
+        if self.jump_sound: self.jump_sound.set_volume(0.5)
+        self.land_sound = assets.get_sound('assets/sounds/land.wav')
+        if self.land_sound: self.land_sound.set_volume(0.5)
 
     def get_input(self):
         keys = pygame.key.get_pressed()
@@ -106,15 +114,15 @@ class Player(pygame.sprite.Sprite):
                  self.jump()
         self.prev_space_pressed = keys[pygame.K_SPACE]
 
-        # Joystick Input (Simple implementation)
-        # Check globally initialized joystick in pygame
-        if pygame.joystick.get_count() > 0:
+        # Joystick Input
+        if self.joystick:
             try:
-                # We assume joystick 0 is initialized in Game class
-                joystick = pygame.joystick.Joystick(0)
-
                 # Horizontal axis usually 0
-                axis_x = joystick.get_axis(0)
+                axis_x = self.joystick.get_axis(0)
+                # Deadzone
+                if abs(axis_x) < 0.2:
+                    axis_x = 0
+
                 if axis_x > 0.5:
                     self.direction.x = 1
                     self.facing_right = True
@@ -123,7 +131,7 @@ class Player(pygame.sprite.Sprite):
                     self.facing_right = False
 
                 # Button 0 or 1 usually jump (A or B)
-                joy_jump = joystick.get_button(0) or joystick.get_button(1)
+                joy_jump = self.joystick.get_button(0) or self.joystick.get_button(1)
                 if joy_jump:
                     if self.on_ground and not self.prev_joy_jump:
                         self.jump()
@@ -132,7 +140,7 @@ class Player(pygame.sprite.Sprite):
                 self.prev_joy_jump = joy_jump
 
             except pygame.error:
-                pass # Joystick not initialized or disconnected
+                pass # Joystick error
 
     def apply_gravity(self):
         self.direction.y += self.gravity

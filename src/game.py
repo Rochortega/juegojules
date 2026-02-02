@@ -46,7 +46,8 @@ class Game:
         if self.session.current_level_index < len(self.levels):
             level_file = self.levels[self.session.current_level_index]
             level_map = load_level_map(level_file)
-            self.level = Level(level_map, self.virtual_screen, self.session)
+            joystick = self.joysticks[0] if self.joysticks else None
+            self.level = Level(level_map, self.virtual_screen, self.session, joystick)
         else:
             self.state = 'VICTORY'
 

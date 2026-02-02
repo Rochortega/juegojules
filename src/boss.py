@@ -1,11 +1,12 @@
 import pygame
 from src.enemy import Enemy
+from src.assets_manager import assets
 import math
 
 class Boss(Enemy):
     def __init__(self, pos):
         super().__init__(pos)
-        self.image = pygame.image.load('assets/sprites/enemy_boss.png').convert_alpha()
+        self.image = assets.get_image('assets/sprites/enemy_boss.png')
         self.rect = self.image.get_rect(topleft=pos)
         self.start_x = pos[0]
         self.speed = 1.5

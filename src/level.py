@@ -1,5 +1,6 @@
 import pygame
 from src.settings import *
+from src.assets_manager import assets
 from src.tile import Tile
 from src.player import Player
 from src.enemy import Enemy
@@ -11,11 +12,13 @@ from src.ui import UI
 from src.debug import DebugInterface
 
 class Level:
-    def __init__(self, level_data, surface, session):
+    def __init__(self, level_data, surface, session, joystick=None):
         self.display_surface = surface
         self.world_shift = 0
+        self.current_x = 0
         self.layout = level_data # Store layout for respawn
         self.session = session
+        self.joystick = joystick
 
         # State flags
         self.finished = False
@@ -30,16 +33,16 @@ class Level:
         self.debug = DebugInterface(self.player.sprite)
 
         # Audio
-        self.hit_sound = pygame.mixer.Sound('assets/sounds/hit.wav')
-        self.hit_sound.set_volume(0.5)
-        self.win_sound = pygame.mixer.Sound('assets/sounds/win.wav')
-        self.win_sound.set_volume(0.5)
-        self.break_sound = pygame.mixer.Sound('assets/sounds/break.wav')
-        self.break_sound.set_volume(0.5)
-        self.coin_sound = pygame.mixer.Sound('assets/sounds/pickup.wav')
-        self.coin_sound.set_volume(0.4)
-        self.heal_sound = pygame.mixer.Sound('assets/sounds/pickup.wav') # Reuse for now
-        self.heal_sound.set_volume(0.4)
+        self.hit_sound = assets.get_sound('assets/sounds/hit.wav')
+        if self.hit_sound: self.hit_sound.set_volume(0.5)
+        self.win_sound = assets.get_sound('assets/sounds/win.wav')
+        if self.win_sound: self.win_sound.set_volume(0.5)
+        self.break_sound = assets.get_sound('assets/sounds/break.wav')
+        if self.break_sound: self.break_sound.set_volume(0.5)
+        self.coin_sound = assets.get_sound('assets/sounds/pickup.wav')
+        if self.coin_sound: self.coin_sound.set_volume(0.4)
+        self.heal_sound = assets.get_sound('assets/sounds/pickup.wav') # Reuse for now
+        if self.heal_sound: self.heal_sound.set_volume(0.4)
 
     def setup_level(self, level_data):
         self.bg_tiles = pygame.sprite.Group()
@@ -70,7 +73,7 @@ class Level:
                         group.add(tile)
                     if cell == 'B':
                         tile = Tile((x, y), TILE_SIZE)
-                        tile.image = pygame.image.load('assets/sprites/tile_brick.png').convert_alpha()
+                        tile.image = assets.get_image('assets/sprites/tile_brick.png')
                         tile.is_brick = True # Mark as breakable
                         group.add(tile)
 
@@ -78,10 +81,10 @@ class Level:
                     if is_main:
                         if cell == 'F':
                             tile = Tile((x, y), TILE_SIZE)
-                            tile.image = pygame.image.load('assets/sprites/tile_goal.png').convert_alpha()
+                            tile.image = assets.get_image('assets/sprites/tile_goal.png')
                             self.goal.add(tile)
                         if cell == 'P':
-                            player_sprite = Player((x, y))
+                            player_sprite = Player((x, y), self.joystick)
                             self.player.add(player_sprite)
                             self.start_pos = (x, y)
                         if cell == 'E':
@@ -105,19 +108,23 @@ class Level:
         if 'fg' in layers: process_layer(layers['fg'], self.fg_tiles)
 
     def respawn(self):
+        # Reset player to start
         self.player.sprite.rect.topleft = self.start_pos
         self.player.sprite.direction = pygame.math.Vector2(0, 0)
-        # Don't reset health here, handled by session or damage logic
-        # But wait, local player sprite needs to sync with session health
         self.player.sprite.health = self.session.lives
 
-        # Reset level shift?
-        # Since we shift tiles, resetting player to start_pos (which is relative to initial world) won't work
-        # if the world has shifted.
-        # Ideally, we should reload the level.
-        # For this simple engine, let's just reverse the total shift or reload the tiles.
-        # Reloading is safer.
-        self.setup_level(self.layout) # We need to store layout
+        # Reset World Shift (Move everything back to initial state)
+        shift_needed = -self.current_x
+
+        self.bg_tiles.update(shift_needed)
+        self.tiles.update(shift_needed)
+        self.fg_tiles.update(shift_needed)
+        self.goal.update(shift_needed)
+        self.enemies.update(shift_needed)
+        self.coins.update(shift_needed)
+        self.potions.update(shift_needed)
+
+        self.current_x = 0
         self.world_shift = 0
 
     def check_goal(self):
@@ -260,6 +267,7 @@ class Level:
         self.player.sprite.animate()
 
         self.scroll_x()
+        self.current_x += self.world_shift
 
         self.horizontal_movement_collision()
         self.vertical_movement_collision()
