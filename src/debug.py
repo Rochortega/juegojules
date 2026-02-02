@@ -47,16 +47,19 @@ class DebugInterface:
         self.prev_keys[pygame.K_RIGHT] = keys[pygame.K_RIGHT]
         self.prev_keys[pygame.K_LEFT] = keys[pygame.K_LEFT]
 
-    def draw(self, surface):
+    def draw(self, surface, camera_x=0):
         if not self.active: return
 
         # Draw Hitbox Visuals
         # Target Rect (Hitbox) - RED
-        pygame.draw.rect(surface, (255, 0, 0), self.target.rect, 1)
+        # Apply camera offset
+        rect = self.target.rect.copy()
+        rect.x -= camera_x
+        pygame.draw.rect(surface, (255, 0, 0), rect, 1)
 
         # Target Image Rect (Visual) - WHITE
         if hasattr(self.target, 'image_offset'):
-            vis_x = self.target.rect.x - self.target.image_offset.x
+            vis_x = self.target.rect.x - self.target.image_offset.x - camera_x
             vis_y = self.target.rect.y - self.target.image_offset.y
             vis_w = self.target.image.get_width()
             vis_h = self.target.image.get_height()
