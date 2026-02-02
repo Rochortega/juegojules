@@ -118,6 +118,10 @@ class Level:
     def respawn(self):
         # Reset player to start
         self.player.sprite.rect.topleft = self.start_pos
+        # Sync physics float positions to prevent immediate fall-through loop
+        self.player.sprite.pos_x = float(self.start_pos[0])
+        self.player.sprite.pos_y = float(self.start_pos[1])
+
         self.player.sprite.direction = pygame.math.Vector2(0, 0)
         self.player.sprite.health = self.session.lives
 
@@ -284,9 +288,8 @@ class Level:
 
         # Update
         self.player.sprite.health = self.session.lives # Sync
-        self.player.sprite.get_input()
-        self.player.sprite.get_status()
-        self.player.sprite.animate()
+        # Call update() to ensure Jump/Coyote logic runs (previously skipped by manual calls)
+        self.player.update()
 
         self.horizontal_movement_collision()
         self.vertical_movement_collision()
