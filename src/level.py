@@ -1,4 +1,5 @@
 import pygame
+import random
 from src.settings import *
 from src.assets_manager import assets
 from src.tile import Tile
@@ -243,6 +244,15 @@ class Level:
 
         if player.on_ground:
             player.jump_count = 0
+
+    def trigger_shake(self, duration=20):
+        self.shake_timer = duration
+
+    def get_shake_offset(self):
+        if self.shake_timer > 0:
+            self.shake_timer -= 1
+            return (random.randint(-2, 2), random.randint(-2, 2))
+        return (0, 0)
 
     def scroll_x(self):
         player = self.player.sprite

@@ -115,6 +115,9 @@ class Player(PhysicsEntity):
             self.facing_right = False
 
         # Jump Request (Buffer)
+        # Using constant JUMP instead of string 'jump' to match definition if imported,
+        # but InputManager defines it as 'jump' string anyway.
+        # Ensuring update checks work.
         if self.input_manager.is_just_pressed('jump'):
             self.jump_buffer_time = pygame.time.get_ticks()
 
