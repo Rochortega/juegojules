@@ -1,0 +1,8 @@
+{
+    "PLAYER_WIDTH": 48,
+    "PLAYER_HEIGHT": 48,
+    "GRAVITY": 1.0,
+    "PLAYER_SPEED": 4,
+    "PLAYER_JUMP_FORCE": -16,
+    "ANIMATION_SPEED": 0.15
+}

@@ -42,32 +42,39 @@ class Player(pygame.sprite.Sprite):
         path = 'assets/sprites/'
         self.animations = {'idle': [], 'run': [], 'jump': [], 'fall': []}
 
-        # Try loading spritesheets (Native Support 64x64 -> 32x32)
+        # Try loading spritesheets (Native Support 64x64 -> PLAYER_SIZE)
         # We look for 'player_run.png' etc.
+        target_size = PLAYER_SIZE # From settings/config
 
         # Run
         if os.path.exists(path + 'player_run.png'):
-            self.animations['run'] = import_spritesheet(path + 'player_run.png', 64, 64, scale_to=(32, 32))
+            self.animations['run'] = import_spritesheet(path + 'player_run.png', 64, 64, scale_to=target_size)
         else:
-            # Fallback to sequence
-            if os.path.exists(path + 'player_run_0.png'):
-                self.animations['run'].append(pygame.image.load(path + 'player_run_0.png').convert_alpha())
-            if os.path.exists(path + 'player_run_1.png'):
-                self.animations['run'].append(pygame.image.load(path + 'player_run_1.png').convert_alpha())
+            # Fallback to sequence (Also scale them?)
+            # Assuming old assets were 32x32 native or generated.
+            # If we want 48x48, we should probably scale these too.
+            def load_scale(name):
+                img = pygame.image.load(path + name).convert_alpha()
+                return pygame.transform.scale(img, target_size)
+
+            if os.path.exists(path + 'player_run_0.png'): self.animations['run'].append(load_scale('player_run_0.png'))
+            if os.path.exists(path + 'player_run_1.png'): self.animations['run'].append(load_scale('player_run_1.png'))
 
         # Idle
         if os.path.exists(path + 'player_idle.png'):
-            # Check if it is a sheet (width > height)
             img = pygame.image.load(path + 'player_idle.png')
             if img.get_width() > img.get_height():
-                 self.animations['idle'] = import_spritesheet(path + 'player_idle.png', 64, 64, scale_to=(32, 32))
+                 self.animations['idle'] = import_spritesheet(path + 'player_idle.png', 64, 64, scale_to=target_size)
             else:
-                 self.animations['idle'].append(img.convert_alpha())
+                 self.animations['idle'].append(pygame.transform.scale(img.convert_alpha(), target_size))
 
         # Jump
         if os.path.exists(path + 'player_jump.png'):
-             # Assume single frame for jump usually, unless named sheet
-             self.animations['jump'].append(pygame.image.load(path + 'player_jump.png').convert_alpha())
+             img = pygame.image.load(path + 'player_jump.png')
+             if img.get_width() > img.get_height(): # Sheet
+                 self.animations['jump'] = import_spritesheet(path + 'player_jump.png', 64, 64, scale_to=target_size)
+             else:
+                 self.animations['jump'].append(pygame.transform.scale(img.convert_alpha(), target_size))
 
         # Fall (reuse jump if empty)
         if not self.animations['fall']:
@@ -152,8 +159,15 @@ class Player(pygame.sprite.Sprite):
         animation = self.animations[self.status]
 
         self.frame_index += self.animation_speed
-        if self.frame_index >= len(animation):
-            self.frame_index = 0
+
+        if self.status == 'jump':
+            # Play once or clamp
+            if self.frame_index >= len(animation):
+                self.frame_index = len(animation) - 1
+        else:
+            # Loop
+            if self.frame_index >= len(animation):
+                self.frame_index = 0
 
         image = animation[int(self.frame_index)]
         if self.facing_right:
