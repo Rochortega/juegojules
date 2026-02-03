@@ -64,9 +64,12 @@ class LevelEditor:
         self.load_assets()
 
         # Editor State
-        self.current_tile = 'X'
-        self.current_layer = 'main' # bg, main, fg
-        self.layers = {'bg': {}, 'main': {}, 'fg': {}}
+        self.current_tile = 'P' # Default Entity
+        self.current_tile_id = 0 # Default Terrain
+        self.current_layer = 'main' # bg, main, fg, terrain
+        self.layers = {'bg': {}, 'main': {}, 'fg': {}, 'terrain': {}}
+        self.settings = {'bg_y_offset': 0}
+        self.palette_scroll_y = 0
 
         self.status_message = ""
         self.status_timer = 0
@@ -102,6 +105,7 @@ class LevelEditor:
             self.assets['H'] = pygame.image.load('assets/sprites/item_potion.png').convert_alpha()
             self.assets['W'] = pygame.image.load('assets/sprites/enemy_bat.png').convert_alpha()
             self.assets['K'] = pygame.image.load('assets/sprites/enemy_boss.png').convert_alpha()
+            self.assets['S'] = pygame.image.load('assets/sprites/tile_goal.png').convert_alpha() # Checkpoint reuse
 
             # Map 'X' to the first tile in tileset if available, else load fallback
             if assets.terrain_tiles:
@@ -124,14 +128,20 @@ class LevelEditor:
         x_start = SCREEN_WIDTH - SIDEBAR_WIDTH + 10
         width = SIDEBAR_WIDTH - 20
 
+        # BG Offset Controls
+        self.buttons.append(Button((x_start, 10, width // 2 - 5, 20), "BG Y-", lambda: self.adjust_bg_y(-10), color=(60, 60, 60)))
+        self.buttons.append(Button((x_start + width // 2 + 5, 10, width // 2 - 5, 20), "BG Y+", lambda: self.adjust_bg_y(10), color=(60, 60, 60)))
+
         # Layer Toggles
-        self.buttons.append(Button((x_start, 10, width, 30), "Layer: BG", lambda: self.set_layer('bg'), color=(50, 50, 80)))
-        self.buttons.append(Button((x_start, 45, width, 30), "Layer: MAIN", lambda: self.set_layer('main'), color=(80, 50, 50)))
-        self.buttons.append(Button((x_start, 80, width, 30), "Layer: FG", lambda: self.set_layer('fg'), color=(50, 80, 50)))
+        start_y = 40
+        self.buttons.append(Button((x_start, start_y, width, 30), "Layer: BG", lambda: self.set_layer('bg'), color=(50, 50, 80)))
+        self.buttons.append(Button((x_start, start_y + 35, width, 30), "Layer: MAIN", lambda: self.set_layer('main'), color=(80, 50, 50)))
+        self.buttons.append(Button((x_start, start_y + 70, width, 30), "Layer: FG", lambda: self.set_layer('fg'), color=(50, 80, 50)))
+        self.buttons.append(Button((x_start, start_y + 105, width, 30), "Layer: TERRAIN", lambda: self.set_layer('terrain'), color=(80, 80, 50)))
 
         # Auto-Tile Toggle
         self.auto_tile = False
-        self.buttons.append(Button((x_start, 120, width, 30), "Auto-Tile: OFF", self.toggle_auto_tile, color=(60, 60, 60)))
+        self.buttons.append(Button((x_start, start_y + 145, width, 30), "Auto-Tile: OFF", self.toggle_auto_tile, color=(60, 60, 60)))
 
         # Save
         self.buttons.append(Button((x_start, SCREEN_HEIGHT - 50, width, 40), "SAVE MAP", self.save_map))
@@ -142,7 +152,6 @@ class LevelEditor:
     def toggle_auto_tile(self):
         self.auto_tile = not self.auto_tile
         # Update button text
-        # Finding button by callback is hacky but works here
         for btn in self.buttons:
              if "Auto-Tile" in btn.text:
                  btn.text = f"Auto-Tile: {'ON' if self.auto_tile else 'OFF'}"
@@ -159,13 +168,19 @@ class LevelEditor:
         self.status_timer = 120 # 2 seconds
 
     def new_level(self):
-        self.layers = {'bg': {}, 'main': {}, 'fg': {}}
+        self.layers = {'bg': {}, 'main': {}, 'fg': {}, 'terrain': {}}
         self.show_status("New Level Created")
+
+    def adjust_bg_y(self, amount):
+        self.settings['bg_y_offset'] = self.settings.get('bg_y_offset', 0) + amount
+        self.show_status(f"BG Y Offset: {self.settings['bg_y_offset']}")
 
     def load_map(self, filepath):
         data = load_level_map(filepath)
-        self.layers = {'bg': {}, 'main': {}, 'fg': {}}
+        self.layers = {'bg': {}, 'main': {}, 'fg': {}, 'terrain': {}}
+        self.settings = data.get('settings', {'bg_y_offset': 0})
 
+        # Load String Layers
         for layer_name in ['bg', 'main', 'fg']:
             if layer_name in data:
                 rows = data[layer_name]
@@ -174,7 +189,15 @@ class LevelEditor:
                         if char != '.':
                             self.layers[layer_name][(x, y)] = char
 
-        self.show_status(f"Loaded {filepath}")
+        # Load Terrain Grid
+        if 'terrain' in data:
+            rows = data['terrain']
+            for y, row in enumerate(rows):
+                for x, tile_id in enumerate(row):
+                    if tile_id != -1:
+                        self.layers['terrain'][(x, y)] = tile_id
+
+        self.show_status(f"Loaded {filepath} (BG Y: {self.settings.get('bg_y_offset', 0)})")
 
     def save_map(self):
         # Convert sparse dicts to grid lists
@@ -188,7 +211,10 @@ class LevelEditor:
         height = MAP_HEIGHT
 
         export_data = {}
-        for layer_name, tiles in self.layers.items():
+
+        # String Layers
+        for layer_name in ['bg', 'main', 'fg']:
+            tiles = self.layers[layer_name]
             grid = []
             for y in range(height):
                 row = ""
@@ -196,6 +222,19 @@ class LevelEditor:
                     row += tiles.get((x, y), '.')
                 grid.append(row)
             export_data[layer_name] = grid
+
+        # Terrain Layer (Int Grid)
+        tiles = self.layers['terrain']
+        grid = []
+        for y in range(height):
+            row = []
+            for x in range(width):
+                row.append(tiles.get((x, y), -1))
+            grid.append(row)
+        export_data['terrain'] = grid
+
+        # Save Settings
+        export_data['settings'] = self.settings
 
         save_level_map(self.filename, export_data)
         self.show_status(f"Saved to {self.filename}")
@@ -227,6 +266,10 @@ class LevelEditor:
         if keys[pygame.K_RIGHT]: self.scroll_x += self.scroll_speed
         if self.scroll_x < 0: self.scroll_x = 0
 
+        # Palette scrolling (Up/Down keys?)
+        if keys[pygame.K_PAGEUP]: self.palette_scroll_y = max(0, self.palette_scroll_y - 5)
+        if keys[pygame.K_PAGEDOWN]: self.palette_scroll_y += 5
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -253,22 +296,11 @@ class LevelEditor:
                          for btn in self.buttons:
                             btn.check_click(event.pos)
 
-                         # Palette Selection Logic (Grid 2 columns)
-                         # Defined in draw_editor, we need to match logic here
-                         palette_start_y = 160
-                         tiles = ['X', 'P', 'E', 'F', 'B', 'C', 'H', 'W', 'K', '.']
-
-                         # Check against grid rects
-                         col_width = (SIDEBAR_WIDTH - 20) // 2
-                         for i, t in enumerate(tiles):
-                             col = i % 2
-                             row = i // 2
-                             x = (SCREEN_WIDTH - SIDEBAR_WIDTH + 10) + col * col_width
-                             y = palette_start_y + row * 60
-
-                             rect = pygame.Rect(x, y, 48, 48) # Icon size + padding area
-                             if rect.collidepoint(mx, my):
-                                 self.current_tile = t
+                         # Palette Logic handled in draw due to scroll, or check here?
+                         # Let's check here, but we need to know layout.
+                         pass # Check logic in draw loop or replicate here?
+                         # Simpler: Replicate simple layout logic here or use Button objects for palette.
+                         # Since it's grid, manual check.
 
         # Painting
         if pygame.mouse.get_pressed()[0] or pygame.mouse.get_pressed()[2]:
@@ -279,24 +311,55 @@ class LevelEditor:
                 grid_y = int(my // TILE_SIZE)
 
                 if 0 <= grid_y < MAP_HEIGHT and grid_x >= 0:
-                    if pygame.mouse.get_pressed()[0]:
-                        if self.current_tile == '.':
-                            if (grid_x, grid_y) in self.layers[self.current_layer]:
-                                del self.layers[self.current_layer][(grid_x, grid_y)]
+                    layer_data = self.layers[self.current_layer]
+
+                    if pygame.mouse.get_pressed()[2]: # Right click erase
+                         if (grid_x, grid_y) in layer_data:
+                                del layer_data[(grid_x, grid_y)]
+                    elif pygame.mouse.get_pressed()[0]: # Left click paint
+                        if self.current_layer == 'terrain':
+                            layer_data[(grid_x, grid_y)] = self.current_tile_id
                         else:
-                            self.layers[self.current_layer][(grid_x, grid_y)] = self.current_tile
-                    elif pygame.mouse.get_pressed()[2]: # Right click erase
-                         if (grid_x, grid_y) in self.layers[self.current_layer]:
-                                del self.layers[self.current_layer][(grid_x, grid_y)]
+                            # Entity layers
+                            if self.current_tile == '.':
+                                if (grid_x, grid_y) in layer_data:
+                                    del layer_data[(grid_x, grid_y)]
+                            else:
+                                layer_data[(grid_x, grid_y)] = self.current_tile
 
     def draw_editor(self):
         self.screen.fill(BG_COLOR)
+
+        # Draw BG Preview (if images loaded)
+        # We need assets_manager reference? assets global is imported.
+        # Draw layer 0-4 with offset
+        bg_y = self.settings.get('bg_y_offset', 0)
+        # Just draw layer 0 repeated?
+        # Ideally we draw what the game draws, but simplified.
+        # Let's try to draw layer 0 and 1.
+        for i in range(2): # Draw first 2 layers
+             bg_img = assets.get_image(f'assets/bg/bg_layer_{i}.png')
+             if bg_img:
+                 self.screen.blit(bg_img, (0, bg_y)) # Static preview
 
         # visible range
         start_col = int(self.scroll_x // TILE_SIZE)
         end_col = start_col + ((SCREEN_WIDTH - SIDEBAR_WIDTH) // TILE_SIZE) + 1
 
         # Draw Layers
+        # Render Terrain First
+        terrain = self.layers.get('terrain', {})
+        for (gx, gy), tid in terrain.items():
+             if start_col <= gx <= end_col:
+                screen_x = gx * TILE_SIZE - self.scroll_x
+                screen_y = gy * TILE_SIZE
+                if 0 <= tid < len(assets.terrain_tiles):
+                    img = assets.terrain_tiles[tid]
+                    if self.current_layer != 'terrain':
+                        img = img.copy()
+                        img.set_alpha(100) # Dim if not active
+                    self.screen.blit(img, (screen_x, screen_y))
+
         layers_order = ['bg', 'main', 'fg']
         for layer_name in layers_order:
             tiles = self.layers[layer_name]
@@ -330,14 +393,20 @@ class LevelEditor:
             screen_y = grid_y * TILE_SIZE
 
             if 0 <= grid_y < MAP_HEIGHT:
-                if self.current_tile != '.' and self.current_tile in self.assets:
-                    ghost = self.assets[self.current_tile].copy()
-                    ghost.set_alpha(128)
-                    self.screen.blit(ghost, (screen_x, screen_y))
+                # Ghost for terrain
+                if self.current_layer == 'terrain':
+                    if assets.terrain_tiles and 0 <= self.current_tile_id < len(assets.terrain_tiles):
+                        ghost = assets.terrain_tiles[self.current_tile_id].copy()
+                        ghost.set_alpha(128)
+                        self.screen.blit(ghost, (screen_x, screen_y))
+                else:
+                    if self.current_tile != '.' and self.current_tile in self.assets:
+                        ghost = self.assets[self.current_tile].copy()
+                        ghost.set_alpha(128)
+                        self.screen.blit(ghost, (screen_x, screen_y))
 
                 # Selection Box
-                color = HIGHLIGHT_COLOR if self.current_tile != '.' else ERROR_COLOR
-                pygame.draw.rect(self.screen, color, (screen_x, screen_y, TILE_SIZE, TILE_SIZE), 1)
+                pygame.draw.rect(self.screen, HIGHLIGHT_COLOR, (screen_x, screen_y, TILE_SIZE, TILE_SIZE), 1)
 
         # Sidebar
         pygame.draw.rect(self.screen, SIDEBAR_BG, (SCREEN_WIDTH - SIDEBAR_WIDTH, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT))
@@ -346,12 +415,26 @@ class LevelEditor:
         for btn in self.buttons:
             btn.draw(self.screen)
 
-        # Palette (Grid Layout)
-        start_y = 160 # Moved down due to Auto-Tile button
+        # Palette Logic based on current Layer
+        if self.current_layer == 'terrain':
+            self.draw_palette_terrain()
+        else:
+            self.draw_palette_entities()
+
+        # Status Message
+        if self.status_timer > 0:
+            self.status_timer -= 1
+            msg_surf = self.font.render(self.status_message, True, HIGHLIGHT_COLOR)
+            self.screen.blit(msg_surf, (10, SCREEN_HEIGHT - 30))
+
+        pygame.display.flip()
+
+    def draw_palette_entities(self):
+        start_y = 200 # Moved down
 
         # Standard Entities
-        tiles = ['X', 'P', 'E', 'F', 'B', 'C', 'H', 'W', 'K', '.']
-        labels = ['Gnd', 'Ply', 'Eny', 'Goal', 'Brk', 'Coin', 'Pot', 'Bat', 'Boss', 'Del']
+        tiles = ['P', 'E', 'F', 'S', 'B', 'C', 'H', 'W', 'K', '.']
+        labels = ['Ply', 'Eny', 'Goal', 'Save', 'Brk', 'Coin', 'Pot', 'Bat', 'Boss', 'Del']
 
         col_width = (SIDEBAR_WIDTH - 20) // 2
 
@@ -360,10 +443,16 @@ class LevelEditor:
             row = i // 2
 
             x = (SCREEN_WIDTH - SIDEBAR_WIDTH + 10) + col * col_width
-            y = start_y + row * 60 # 60px height per row
+            y = start_y + row * 60
 
             # Icon Rect
             rect = pygame.Rect(x + 10, y, 32, 32)
+
+            # Check click
+            if pygame.mouse.get_pressed()[0]:
+                mx, my = pygame.mouse.get_pos()
+                if rect.collidepoint(mx, my):
+                    self.current_tile = t
 
             # Highlight selected
             if self.current_tile == t:
@@ -379,17 +468,44 @@ class LevelEditor:
             label = self.font.render(labels[i], True, TEXT_COLOR)
             self.screen.blit(label, (x + 5, y + 35))
 
-        # Draw Objects / Tileset Preview (Optional extension)
-        # If we have tileset tiles, maybe show them?
-        # Currently the Editor only paints 'X'. We kept it simple as per plan.
+    def draw_palette_terrain(self):
+        start_y = 200
+        tiles = assets.terrain_tiles
 
-        # Status Message
-        if self.status_timer > 0:
-            self.status_timer -= 1
-            msg_surf = self.font.render(self.status_message, True, HIGHLIGHT_COLOR)
-            self.screen.blit(msg_surf, (10, SCREEN_HEIGHT - 30))
+        if not tiles:
+            lbl = self.font.render("No Tileset Loaded", True, ERROR_COLOR)
+            self.screen.blit(lbl, (SCREEN_WIDTH - SIDEBAR_WIDTH + 10, start_y))
+            return
 
-        pygame.display.flip()
+        cols = 4 # 4 tiles wide in sidebar
+        tile_size = 32
+        margin = 5
+
+        # Scroll Logic (Mouse wheel is handled globally? No, let's keep it simple: Page Up/Down keys?)
+        # Or simple wrapping
+
+        for i, tile_surf in enumerate(tiles):
+            col = i % cols
+            row = i // cols
+
+            x = (SCREEN_WIDTH - SIDEBAR_WIDTH + 10) + col * (tile_size + margin)
+            y = start_y + row * (tile_size + margin) - self.palette_scroll_y
+
+            if y < start_y or y > SCREEN_HEIGHT - 40: continue # Clip
+
+            rect = pygame.Rect(x, y, tile_size, tile_size)
+
+            # Check click
+            if pygame.mouse.get_pressed()[0]:
+                mx, my = pygame.mouse.get_pos()
+                if rect.collidepoint(mx, my) and mx > SCREEN_WIDTH - SIDEBAR_WIDTH:
+                    self.current_tile_id = i
+
+            # Highlight
+            if self.current_tile_id == i:
+                pygame.draw.rect(self.screen, HIGHLIGHT_COLOR, (rect.x-2, rect.y-2, tile_size+4, tile_size+4), 2)
+
+            self.screen.blit(tile_surf, rect)
 
 if __name__ == "__main__":
     print("--- SNES LEVEL EDITOR ---")

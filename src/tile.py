@@ -3,9 +3,13 @@ from src.settings import *
 from src.assets_manager import assets
 
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, pos, size):
+    def __init__(self, pos, size, image=None):
         super().__init__()
-        self.image = assets.get_image('assets/sprites/tile_ground.png')
+        if image:
+            self.image = image
+        else:
+            self.image = assets.get_image('assets/sprites/tile_ground.png')
+
         # Ensure it's scaled if needed, but our assets are 16x16
         self.rect = self.image.get_rect(topleft=pos)
 
