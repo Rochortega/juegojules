@@ -134,6 +134,21 @@ class Level:
         if 'main' in layers: process_layer(layers['main'], self.tiles, is_main=True)
         if 'fg' in layers: process_layer(layers['fg'], self.fg_tiles)
 
+        # Process Terrain Grid (Tile IDs)
+        if 'terrain' in layers:
+            terrain_grid = layers['terrain']
+            for row_index, row in enumerate(terrain_grid):
+                for col_index, tile_id in enumerate(row):
+                    if tile_id != -1: # -1 is empty
+                        x = col_index * TILE_SIZE
+                        y = row_index * TILE_SIZE
+
+                        # Get image from tileset
+                        if tile_id < len(assets.terrain_tiles):
+                            img = assets.terrain_tiles[tile_id]
+                            tile = Tile((x, y), TILE_SIZE, image=img)
+                            self.tiles.add(tile) # Add to main collision tiles
+
     def respawn(self):
         # Reset player to start
         self.player.sprite.rect.topleft = self.start_pos
