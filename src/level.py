@@ -71,6 +71,7 @@ class Level:
         self.enemies = pygame.sprite.Group()
         self.coins = pygame.sprite.Group()
         self.potions = pygame.sprite.Group()
+        self.checkpoints = pygame.sprite.Group()
         self.player = pygame.sprite.GroupSingle()
 
         # Handle Dictionary (Multi-layer) vs List (Legacy/Single Layer)
@@ -101,6 +102,14 @@ class Level:
                             tile = Tile((x, y), TILE_SIZE)
                             tile.image = assets.get_image('assets/sprites/tile_goal.png')
                             self.goal.add(tile)
+                        if cell == 'S':
+                            tile = Tile((x, y), TILE_SIZE)
+                            # Use existing flag image but maybe tinted or different asset if available
+                            # assets.get_image('assets/sprites/tile_checkpoint.png')
+                            # Fallback to goal image for now, maybe use different update logic to show active?
+                            tile.image = assets.get_image('assets/sprites/tile_goal.png').copy()
+                            tile.image.fill((100, 100, 255), special_flags=pygame.BLEND_RGB_MULT) # Blue tint
+                            self.checkpoints.add(tile)
                         if cell == 'P':
                             player_sprite = Player((x, y))
                             self.player.add(player_sprite)
@@ -143,6 +152,19 @@ class Level:
             self.win_sound.play()
             self.finished = True
 
+    def check_checkpoint_collisions(self):
+        player = self.player.sprite
+        hits = pygame.sprite.spritecollide(player, self.checkpoints, False)
+        for sprite in hits:
+            # Update start pos
+            # We compare with current start pos to avoid spamming sound if standing on it
+            new_pos = (sprite.rect.x, sprite.rect.y)
+            if self.start_pos != new_pos:
+                self.start_pos = new_pos
+                self.heal_sound.play() # Feedback sound
+                # Visual feedback: Turn Green
+                sprite.image.fill((100, 255, 100), special_flags=pygame.BLEND_RGB_MULT)
+
     def check_coin_collisions(self):
         player = self.player.sprite
         # Check collision
@@ -159,6 +181,41 @@ class Level:
                 self.session.lives += 1
                 player.health = self.session.lives
 
+    def play_spatial_sound(self, sound, pos):
+        """
+        Plays sound with volume adjusted by distance to camera center.
+        Max distance for hearing is SCREEN_WIDTH (640).
+        """
+        if not sound: return
+
+        screen_center_x = self.camera_x + (INTERNAL_WIDTH // 2)
+        dist = abs(pos[0] - screen_center_x)
+        max_dist = INTERNAL_WIDTH
+
+        if dist < max_dist:
+            vol = 1.0 - (dist / max_dist)
+            # Simple Pan: -1 (Left) to 1 (Right)
+            pan = (pos[0] - screen_center_x) / (max_dist / 2)
+            pan = max(-1.0, min(1.0, pan))
+
+            # Pygame mixer doesn't have easy pan for Sound objects without Channel hacking
+            # But set_volume(left, right) works on Channel.
+            channel = sound.play()
+            if channel:
+                # Calculate Left/Right volumes based on Pan
+                # Pan -1 -> L=1, R=0
+                # Pan 0 -> L=1, R=1 (or 0.7?)
+                # Pan 1 -> L=0, R=1
+
+                # Linear Panning
+                left_vol = vol * (1.0 - max(0, pan))
+                right_vol = vol * (1.0 + min(0, pan)) # if pan is negative (left), right vol decreases
+                # Wait, if pan is -1 (Left): L = vol * 1, R = vol * 0. Correct.
+                # If pan is 1 (Right): L = vol * 0, R = vol * 1. Correct.
+                # If pan is 0: L = vol, R = vol. Correct.
+
+                channel.set_volume(left_vol, right_vol)
+
     def check_enemy_collisions(self):
         player = self.player.sprite
         # Check collision with enemies
@@ -167,7 +224,7 @@ class Level:
                 # If falling and above enemy -> Kill enemy
                 # Adjusted for taller sprite: check if player bottom is within upper half of enemy
                 if player.direction.y > 0 and player.rect.bottom < enemy.rect.centery + 5:
-                    self.hit_sound.play() # Reuse hit sound for kill for now
+                    self.play_spatial_sound(self.hit_sound, enemy.rect.center)
                     player.direction.y = -6 # Bounce
 
                     if hasattr(enemy, 'hit'): # Boss logic
@@ -178,7 +235,7 @@ class Level:
                 else:
                     if not player.invincible:
                         # Player hurts
-                        self.hit_sound.play()
+                        self.hit_sound.play() # Player hurt is always centered/loud
                         self.session.lives -= 1
                         player.health = self.session.lives
                         player.invincible = True
@@ -251,7 +308,7 @@ class Level:
                     if hasattr(sprite, 'is_brick') and sprite.is_brick:
                         self.particle_manager.create_brick_break(sprite.rect.center)
                         sprite.kill()
-                        self.break_sound.play()
+                        self.play_spatial_sound(self.break_sound, sprite.rect.center)
 
         if player.on_ground and player.direction.y < 0 or player.direction.y > 1:
             player.on_ground = False
@@ -306,6 +363,7 @@ class Level:
         self.scroll_x()
 
         self.check_goal()
+        self.check_checkpoint_collisions()
         self.check_enemy_collisions()
         self.check_coin_collisions()
 
@@ -426,6 +484,7 @@ class Level:
         self.draw_group_culled(self.coins)
         self.draw_group_culled(self.potions)
         self.draw_group_culled(self.goal)
+        self.draw_group_culled(self.checkpoints)
         self.draw_group_culled(self.enemies)
 
         self.particle_manager.draw(self.display_surface)
